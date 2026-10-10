@@ -580,6 +580,7 @@ class MainActivity : ComponentActivity() {
                 if (sub.signedIn) { g.settings.setSubKind(kind); g.settings.setMode(PowerMode.SUBSCRIPTION) } else signErr = err ?: getString(R.string.main_signin_not_finished) } },
             onInstall = { scope.launch { installing = true; runCatching { sub.install { l -> scope.launch { log += l } } }.onFailure { log += getString(R.string.main_install_failed, it.message) }; installing = false; info = sub.info() } },
             onSaveToken = { t -> runCatching { sub.setToken(t); g.settings.setSubKind(kind); g.settings.setMode(PowerMode.SUBSCRIPTION) }.onFailure { signErr = it.message }; info = sub.info() },
+            onSignOut = { sub.signOut(); signErr = null; info = sub.info() },
             onUseKey = onUseKey)
     }
 

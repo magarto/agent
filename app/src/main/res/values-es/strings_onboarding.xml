@@ -146,4 +146,5 @@
     <string name="sub_hide_details">Ocultar detalles</string>
     <string name="sub_details">Detalles</string>
     <string name="onb_key_hint">Pega aquí tu clave</string>
+    <string name="sub_sign_out">Cerrar sesión para usar otra cuenta</string>
 </resources>
