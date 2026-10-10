@@ -4,6 +4,12 @@ import androidx.test.core.app.ApplicationProvider
 import com.past9.phoneaos.data.SettingsStore
 import com.past9.phoneaos.tools.AppCatalog
 import com.past9.phoneaos.tools.ComposioConnect
+import com.past9.phoneaos.agent.AgentRuntime
+import com.past9.phoneaos.data.AppDb
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,5 +50,16 @@ class ComposioOwnAppsTest {
         assertEquals(2, s.composioApps().size)
         s.setComposioKey("ck_two")
         assertTrue(s.composioApps().isEmpty())
+    }
+
+    @Test fun theAgentIsToldWhichAppsTheUserHas() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val s = SettingsStore(app); s.setComposioKey("ck_one")
+        s.rememberComposioApps(mapOf("custom_notas" to "custom_notas toolkit", "gmail" to "", "custom_crm_magar" to ""))
+        val rt = AgentRuntime(app, AppDb.inMemory(app), s, CoroutineScope(SupervisorJob() + Dispatchers.IO), FakePhone(), { null })
+        val sys = rt.systemPrompt("las tareas vencidas")
+        assertTrue(sys.contains("connected apps (name and Composio toolkit slug): Crm Magar (custom_crm_magar), Notas (custom_notas), Gmail (gmail)."))
+        assertTrue(sys.contains("- Crm Magar (custom_crm_magar), Notas (custom_notas) are apps the user made in Composio."))
+        assertFalse(sys.contains("custom_notes"))
     }
 }
