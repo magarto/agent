@@ -67,7 +67,7 @@ object AppCatalog {
 
     private val names = popular.associate { it.slug to it.name } + mapOf("wordpress" to "WordPress", "metaads" to "Meta Ads")
 
-    /** An app's display name. An app made for the account (custom_notas) goes by its own name (Notas). */
+    /** An app's display name. An app made for the account (custom_recipes) goes by its own name (Recipes). */
     fun name(slug: String): String = names[slug.lowercase()] ?: slug.lowercase().removePrefix("custom_").split('_').joinToString(" ") { w -> w.replaceFirstChar { it.uppercase() } }
 
     /** The account's own apps (and connected ones outside the popular list), learned from Composio's replies. */

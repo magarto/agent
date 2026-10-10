@@ -442,7 +442,7 @@ class AgentRuntime(
                 // Toolkits the user built in Composio (custom_*): known to them by name only, and found by no catalogue.
                 apps.filter { it.startsWith("custom_") }.takeIf { it.isNotEmpty() }?.let { own ->
                     val tools = settings.composioAppTools()
-                    appendLine("- Apps the user made in Composio hold their own things (notes, tasks, records...). What each one's tools say it's for:")
+                    appendLine("- Apps the user made in Composio hold their own data and services. What each one's tools say it's for:")
                     own.forEach { slug -> appendLine("  - ${named(listOf(slug))}: ${tools[slug]?.joinToString().orEmpty().ifBlank { "find its tools with COMPOSIO_SEARCH_TOOLS" }}") }
                     appendLine("  When a request could be about something in one of these (by its tools), use that app before saying you can't find it.")
                 }

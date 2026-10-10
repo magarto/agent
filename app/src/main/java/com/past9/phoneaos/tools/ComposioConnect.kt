@@ -118,7 +118,7 @@ object ComposioConnect {
         return out.filterKeys { it.isNotBlank() }
     }
 
-    /** The tool slugs a search found, under the app each belongs to (CUSTOM_NOTAS_X_GET_TASK -> custom_notas). */
+    /** The tool slugs a search found, under the app each belongs to (CUSTOM_RECIPES_GET_RECIPE -> custom_recipes). */
     fun appTools(text: String): Map<String, List<String>> {
         val results = replyData(text)?.optJSONArray("results") ?: return emptyMap()
         val out = mutableMapOf<String, MutableSet<String>>()
@@ -137,7 +137,7 @@ object ComposioConnect {
 
     /**
      * Apps made for this account (custom toolkits) are in no catalogue and never searched for by name: one search turns them up,
-     * and one more per app shows its main tools (they say what it's for: "tasks" lives in the app with GET_TASK).
+     * and one more per app shows its main tools (they say what it's for: a question about recipes belongs to the app with GET_RECIPE).
      */
     suspend fun discoverOwnApps(key: String) {
         val own = activeApps(call(key, "COMPOSIO_SEARCH_TOOLS", search("custom toolkit"))).keys.filter { it.startsWith("custom_") }
