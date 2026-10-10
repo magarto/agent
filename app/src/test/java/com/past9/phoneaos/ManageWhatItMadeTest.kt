@@ -81,6 +81,21 @@ class ManageWhatItMadeTest {
         assertFalse(t.enabled)
         assertEquals(1, dao.list().size)
         assertEquals(id, changed.last().id)
+
+        // Recreating it under the same name is refused and points to routine_update.
+        val again = ScheduleCreateTool(dao) { changed += it }.run(j("""{"name":"morning brief","kind":"daily","spec":"06:15","prompt":"x"}"""), quiet)
+        assertTrue(again.contains("routine_update (id $id)"))
+        assertEquals(1, dao.list().size)
+    }
+
+    @Test fun anEmptyBodyNeverWipesAMemoryPage() = runBlocking {
+        val dao = AppDb.inMemory(app).memory()
+        MemorySaveTool(dao).run(j("""{"title":"Seat preferences","body":"Window, never the last row.","tags":"travel"}"""), quiet)
+        assertTrue(MemorySaveTool(dao).run(j("""{"title":"Seat preferences","tags":"travel"}"""), quiet).startsWith("Not saved"))
+        val page = dao.byTitle("Seat preferences")!!
+        assertEquals("Window, never the last row.", page.body)
+        assertTrue(MemoryUpdateTool(dao).run(j("""{"id":${page.id}}"""), quiet).startsWith("Not changed"))
+        assertEquals("Window, never the last row.", dao.get(page.id)!!.body)
     }
 
     @Test fun eachAgentGetsTheRightTools() = runBlocking {

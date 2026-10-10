@@ -136,6 +136,10 @@ class ScheduleCreateTool(private val dao: TriggerDao, private val onChange: susp
         val kind = input.optString("kind")
         val spec = input.optString("spec").trim()
         routineSpecError(kind, spec)?.let { return "Not created: $it" }
+        // Editing by recreating loses the id (and too often part of the prompt): send it to routine_update instead.
+        dao.list().firstOrNull { it.name.trim().equals(input.optString("name").trim(), true) }?.let {
+            return "Not created: routine #${it.id} is already called \"${it.name}\". Change it in place with routine_update (id ${it.id}); for a second routine, give it another name."
+        }
         val row = TriggerRow(name = input.optString("name"), kind = kind, spec = spec, prompt = input.optString("prompt"))
         val id = dao.upsert(row)
         onChange(row.copy(id = id))
