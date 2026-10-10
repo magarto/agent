@@ -95,6 +95,28 @@ object ComposioConnect {
         }.getOrElse { session = null; sessionKey = null; it.message ?: "Couldn't reach Composio Connect" }
     }
 
+    /**
+     * Apps the account has an active connection to, as they turn up in any reply (slug -> Composio's description).
+     * Composio Connect can't list an account's apps, so whoever sets this keeps them (Connections shows them).
+     */
+    @Volatile var onActiveApps: (Map<String, String>) -> Unit = {}
+
+    /** Every app a reply shows with an active connection: a search's connection statuses, or the toolkits a list returned. */
+    fun activeApps(text: String): Map<String, String> {
+        val d = runCatching { JSONObject(text) }.getOrNull()?.optJSONObject("data") ?: return emptyMap()
+        val out = mutableMapOf<String, String>()
+        d.optJSONArray("toolkit_connection_statuses")?.let { a ->
+            for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optBoolean("has_active_connection") }?.let { out[it.optString("toolkit")] = it.optString("description") }
+        }
+        d.optJSONObject("results")?.let { r -> r.keys().forEach { k -> r.optJSONObject(k)?.takeIf { it.optString("status").equals("active", true) }?.let { out.putIfAbsent(k, "") } } }
+        return out.filterKeys { it.isNotBlank() }
+    }
+
+    /** Apps made for this account (custom toolkits) are in no catalogue and never searched for by name: one search turns them up. */
+    suspend fun discoverOwnApps(key: String) {
+        call(key, "COMPOSIO_SEARCH_TOOLS", JSONObject().put("queries", JSONArray().put(JSONObject().put("use_case", "custom toolkit"))))
+    }
+
     suspend fun call(key: String, name: String, args: JSONObject): String = lock.withLock {
         suspend fun once(): String {
             ensureSession(key)
@@ -105,6 +127,7 @@ object ComposioConnect {
         }
         // Sessions expire: start a fresh one once before giving up.
         runCatching { once() }.getOrElse { session = null; sessionKey = null; runCatching { once() }.getOrElse { "Error: ${it.message}" } }
+            .also { text -> activeApps(text).takeIf { it.isNotEmpty() }?.let { runCatching { onActiveApps(it) } } }
     }
 
     /** A Composio Connect tool's JSON reply ({data, error, successful}), as its data object. */

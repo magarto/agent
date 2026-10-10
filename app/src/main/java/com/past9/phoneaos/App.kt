@@ -28,6 +28,7 @@ class Graph(context: Context) {
     init {
         scope.launch { runCatching { com.past9.phoneaos.triggers.Overnight.ensureRoutine(this@Graph) } }
         // A consumer (ck_) Composio key: fetch Composio Connect's tools so the agent has them.
+        com.past9.phoneaos.tools.ComposioConnect.onActiveApps = { settings.rememberComposioApps(it) }
         settings.composioKey()?.takeIf { com.past9.phoneaos.tools.ComposioConnect.isConsumerKey(it) }?.let { k -> scope.launch { com.past9.phoneaos.tools.ComposioConnect.load(k.trim()) } }
     }
     val call by lazy { com.past9.phoneaos.voice.CallController(app, db, settings, runtime, scope) }

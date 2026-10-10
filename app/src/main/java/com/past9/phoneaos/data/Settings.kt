@@ -181,7 +181,21 @@ class SettingsStore(context: Context) {
     fun clearApiKey(p: Provider) { secrets.edit().remove("key_${p.name}").apply(); _state.value = read() }
 
     fun composioKey(): String? = secrets.getString("composio", null)
-    fun setComposioKey(key: String?) { secrets.edit().apply { if (key.isNullOrBlank()) remove("composio") else putString("composio", key.trim()) }.apply(); _state.value = read() }
+    fun setComposioKey(key: String?) {
+        // Another key is another account: the apps learned for the old one aren't its apps.
+        if (key?.trim() != composioKey()) prefs.edit().remove("composio_apps").apply()
+        secrets.edit().apply { if (key.isNullOrBlank()) remove("composio") else putString("composio", key.trim()) }.apply(); _state.value = read()
+    }
+
+    /** Apps this Composio account has connected that aren't in the popular list (slug -> description), learned as they turn up. */
+    fun composioApps(): Map<String, String> = runCatching {
+        org.json.JSONObject(prefs.getString("composio_apps", null) ?: "{}").let { o -> o.keys().asSequence().associateWith { o.optString(it) } }
+    }.getOrDefault(emptyMap())
+    @Synchronized fun rememberComposioApps(apps: Map<String, String>) {
+        val all = composioApps().toMutableMap()
+        apps.forEach { (slug, about) -> if (about.isNotBlank() || slug !in all) all[slug] = about }
+        prefs.edit().putString("composio_apps", org.json.JSONObject(all as Map<*, *>).toString()).apply()
+    }
 
     /** Stable per-install id: our Composio user id, so connections survive restarts. */
     fun installId(): String = prefs.getString("install_id", null) ?: ("phone-" + java.util.UUID.randomUUID().toString().take(12)).also {
