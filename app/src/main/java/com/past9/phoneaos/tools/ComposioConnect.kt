@@ -101,9 +101,15 @@ object ComposioConnect {
      */
     @Volatile var onActiveApps: (Map<String, String>) -> Unit = {}
 
+    /** The tools a search showed for each app (slug -> tool slugs): what the account's own apps can do. */
+    @Volatile var onAppTools: (Map<String, List<String>>) -> Unit = {}
+
+    /** A reply's JSON: the first block (Composio can add a plain-text hint after it). */
+    private fun replyData(text: String): JSONObject? = runCatching { org.json.JSONTokener(text).nextValue() as? JSONObject }.getOrNull()?.optJSONObject("data")
+
     /** Every app a reply shows with an active connection: a search's connection statuses, or the toolkits a list returned. */
     fun activeApps(text: String): Map<String, String> {
-        val d = runCatching { JSONObject(text) }.getOrNull()?.optJSONObject("data") ?: return emptyMap()
+        val d = replyData(text) ?: return emptyMap()
         val out = mutableMapOf<String, String>()
         d.optJSONArray("toolkit_connection_statuses")?.let { a ->
             for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optBoolean("has_active_connection") }?.let { out[it.optString("toolkit")] = it.optString("description") }
@@ -112,9 +118,30 @@ object ComposioConnect {
         return out.filterKeys { it.isNotBlank() }
     }
 
-    /** Apps made for this account (custom toolkits) are in no catalogue and never searched for by name: one search turns them up. */
+    /** The tool slugs a search found, under the app each belongs to (CUSTOM_NOTAS_X_GET_TASK -> custom_notas). */
+    fun appTools(text: String): Map<String, List<String>> {
+        val results = replyData(text)?.optJSONArray("results") ?: return emptyMap()
+        val out = mutableMapOf<String, MutableSet<String>>()
+        for (i in 0 until results.length()) {
+            val r = results.optJSONObject(i) ?: continue
+            val kits = r.optJSONArray("toolkits")?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty().filter { it.isNotBlank() }
+            listOf("primary_tool_slugs", "related_tool_slugs").forEach { k -> r.optJSONArray(k)?.let { a -> for (j in 0 until a.length()) {
+                val tool = a.optString(j)
+                kits.firstOrNull { tool.startsWith(it.uppercase() + "_") }?.let { out.getOrPut(it) { linkedSetOf() } += tool }
+            } } }
+        }
+        return out.mapValues { it.value.toList() }
+    }
+
+    private fun search(useCase: String) = JSONObject().put("queries", JSONArray().put(JSONObject().put("use_case", useCase)))
+
+    /**
+     * Apps made for this account (custom toolkits) are in no catalogue and never searched for by name: one search turns them up,
+     * and one more per app shows its main tools (they say what it's for: "tasks" lives in the app with GET_TASK).
+     */
     suspend fun discoverOwnApps(key: String) {
-        call(key, "COMPOSIO_SEARCH_TOOLS", JSONObject().put("queries", JSONArray().put(JSONObject().put("use_case", "custom toolkit"))))
+        val own = activeApps(call(key, "COMPOSIO_SEARCH_TOOLS", search("custom toolkit"))).keys.filter { it.startsWith("custom_") }
+        own.forEach { slug -> call(key, "COMPOSIO_SEARCH_TOOLS", search("use the $slug app")) }
     }
 
     suspend fun call(key: String, name: String, args: JSONObject): String = lock.withLock {
@@ -127,7 +154,10 @@ object ComposioConnect {
         }
         // Sessions expire: start a fresh one once before giving up.
         runCatching { once() }.getOrElse { session = null; sessionKey = null; runCatching { once() }.getOrElse { "Error: ${it.message}" } }
-            .also { text -> activeApps(text).takeIf { it.isNotEmpty() }?.let { runCatching { onActiveApps(it) } } }
+            .also { text ->
+                activeApps(text).takeIf { it.isNotEmpty() }?.let { runCatching { onActiveApps(it) } }
+                appTools(text).takeIf { it.isNotEmpty() }?.let { runCatching { onAppTools(it) } }
+            }
     }
 
     /** A Composio Connect tool's JSON reply ({data, error, successful}), as its data object. */

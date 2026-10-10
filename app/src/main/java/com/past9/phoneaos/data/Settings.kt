@@ -183,7 +183,7 @@ class SettingsStore(context: Context) {
     fun composioKey(): String? = secrets.getString("composio", null)
     fun setComposioKey(key: String?) {
         // Another key is another account: the apps learned for the old one aren't its apps.
-        if (key?.trim() != composioKey()) prefs.edit().remove("composio_apps").apply()
+        if (key?.trim() != composioKey()) prefs.edit().remove("composio_apps").remove("composio_app_tools").apply()
         secrets.edit().apply { if (key.isNullOrBlank()) remove("composio") else putString("composio", key.trim()) }.apply(); _state.value = read()
     }
 
@@ -191,6 +191,18 @@ class SettingsStore(context: Context) {
     fun composioApps(): Map<String, String> = runCatching {
         org.json.JSONObject(prefs.getString("composio_apps", null) ?: "{}").let { o -> o.keys().asSequence().associateWith { o.optString(it) } }
     }.getOrDefault(emptyMap())
+    /** The tools seen for the account's own apps (slug -> tool slugs, at most 15 each): they say what each app is for. */
+    fun composioAppTools(): Map<String, List<String>> = runCatching {
+        org.json.JSONObject(prefs.getString("composio_app_tools", null) ?: "{}").let { o ->
+            o.keys().asSequence().associateWith { k -> o.getJSONArray(k).let { a -> (0 until a.length()).map { a.getString(it) } } }
+        }
+    }.getOrDefault(emptyMap())
+    @Synchronized fun rememberComposioAppTools(tools: Map<String, List<String>>) {
+        val all = composioAppTools().toMutableMap()
+        tools.forEach { (slug, t) -> all[slug] = (all[slug].orEmpty() + t).distinct().take(15) }
+        prefs.edit().putString("composio_app_tools", org.json.JSONObject(all.mapValues { org.json.JSONArray(it.value) } as Map<*, *>).toString()).apply()
+    }
+
     @Synchronized fun rememberComposioApps(apps: Map<String, String>) {
         val all = composioApps().toMutableMap()
         apps.forEach { (slug, about) -> if (about.isNotBlank() || slug !in all) all[slug] = about }

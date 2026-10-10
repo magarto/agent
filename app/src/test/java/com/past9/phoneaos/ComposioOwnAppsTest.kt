@@ -21,9 +21,10 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class ComposioOwnAppsTest {
     // Shapes of real Composio Connect replies (ids shortened).
-    private val search = """{"successful":true,"data":{"results":[{"index":1,"primary_tool_slugs":["CUSTOM_NOTAS_X_LIST_NOTES"],"toolkits":["custom_notas"]}],
+    private val search = """{"successful":true,"data":{"results":[{"index":1,"primary_tool_slugs":["CUSTOM_NOTAS_X_LIST_NOTES","CUSTOM_NOTAS_X_GET_TASK"],"related_tool_slugs":["DISCORD_LIST_MY_CONNECTIONS"],"toolkits":["custom_notas"]}],
         "toolkit_connection_statuses":[{"toolkit":"custom_notas","description":"custom_notas toolkit","has_active_connection":true,"accounts":[]},
-        {"toolkit":"discord","description":"Chat for communities","has_active_connection":false}]},"error":null}"""
+        {"toolkit":"discord","description":"Chat for communities","has_active_connection":false}]},"error":null}
+No exact fit? Any HTTP or SSE endpoint can be connected as a custom MCP."""
     private val list = """{"successful":true,"data":{"message":"All connections are active","results":{"linear":{"toolkit":"linear","status":"active",
         "accounts":[{"id":"ca_1","status":"active","is_default":true}]},"trello":{"toolkit":"trello","status":"not_connected","accounts":[]}}},"error":null}"""
 
@@ -31,6 +32,8 @@ class ComposioOwnAppsTest {
         assertEquals(mapOf("custom_notas" to "custom_notas toolkit"), ComposioConnect.activeApps(search))
         assertEquals(mapOf("linear" to ""), ComposioConnect.activeApps(list))
         assertTrue(ComposioConnect.activeApps("Error: timeout").isEmpty())
+        // Tools go under the app they belong to; one whose app isn't in that result is left out.
+        assertEquals(mapOf("custom_notas" to listOf("CUSTOM_NOTAS_X_LIST_NOTES", "CUSTOM_NOTAS_X_GET_TASK")), ComposioConnect.appTools(search))
     }
 
     @Test fun learnedAppsAreKeptAndForgottenWithTheAccount() {
@@ -56,10 +59,12 @@ class ComposioOwnAppsTest {
         val app = ApplicationProvider.getApplicationContext<android.content.Context>()
         val s = SettingsStore(app); s.setComposioKey("ck_one")
         s.rememberComposioApps(mapOf("custom_notas" to "custom_notas toolkit", "gmail" to "", "custom_crm_magar" to ""))
+        s.rememberComposioAppTools(ComposioConnect.appTools(search))
         val rt = AgentRuntime(app, AppDb.inMemory(app), s, CoroutineScope(SupervisorJob() + Dispatchers.IO), FakePhone(), { null })
         val sys = rt.systemPrompt("las tareas vencidas")
         assertTrue(sys.contains("connected apps (name and Composio toolkit slug): Crm Magar (custom_crm_magar), Notas (custom_notas), Gmail (gmail)."))
-        assertTrue(sys.contains("- Crm Magar (custom_crm_magar), Notas (custom_notas) are apps the user made in Composio."))
+        assertTrue(sys.contains("  - Notas (custom_notas): CUSTOM_NOTAS_X_LIST_NOTES, CUSTOM_NOTAS_X_GET_TASK\n"))
+        assertTrue(sys.contains("  - Crm Magar (custom_crm_magar): find its tools with COMPOSIO_SEARCH_TOOLS\n"))
         assertFalse(sys.contains("custom_notes"))
     }
 }

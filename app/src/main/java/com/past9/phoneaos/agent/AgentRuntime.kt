@@ -441,7 +441,10 @@ class AgentRuntime(
                 appendLine("- The user's connected apps (name and Composio toolkit slug): ${named(apps)}. This list can be out of date: search before telling the user an app isn't connected.")
                 // Toolkits the user built in Composio (custom_*): known to them by name only, and found by no catalogue.
                 apps.filter { it.startsWith("custom_") }.takeIf { it.isNotEmpty() }?.let { own ->
-                    appendLine("- ${named(own)} ${if (own.size > 1) "are apps" else "is an app"} the user made in Composio. When they mention ${if (own.size > 1) "one" else "it"} by name, use that toolkit: find its tools with COMPOSIO_SEARCH_TOOLS.")
+                    val tools = settings.composioAppTools()
+                    appendLine("- Apps the user made in Composio hold their own things (notes, tasks, records...). What each one's tools say it's for:")
+                    own.forEach { slug -> appendLine("  - ${named(listOf(slug))}: ${tools[slug]?.joinToString().orEmpty().ifBlank { "find its tools with COMPOSIO_SEARCH_TOOLS" }}") }
+                    appendLine("  When a request could be about something in one of these (by its tools), use that app before saying you can't find it.")
                 }
             }
             appendLine()
