@@ -129,7 +129,7 @@ class ApprovalTool : Tool {
 }
 
 class ScheduleCreateTool(private val dao: TriggerDao, private val onChange: suspend (TriggerRow) -> Unit) : Tool {
-    override val spec = ToolSpec("routine_create", "Create a routine: a prompt you will run later by yourself. kind 'at' = once at a time (spec ISO like 2026-10-06T07:30); 'daily' = every day (spec HH:mm); 'weekly' = on certain weekdays (spec 'SUN 18:00' or 'MON,WED,FRI 07:30'), use this for anything weekly, never daily-with-a-day-check; 'interval' = every N minutes (spec minutes, min 15); 'email' = when a new email matches a Gmail search (spec e.g. 'from:bank@x.com', needs Gmail connected); 'notification' = the moment a phone notification arrives (spec 'App name|keyword', keyword optional, app must be allowed in Connections).",
+    override val spec = ToolSpec("routine_create", "Create a NEW routine (to change one that exists, use routine_update: never create a copy and delete the old one): a prompt you will run later by yourself. kind 'at' = once at a time (spec ISO like 2026-10-06T07:30); 'daily' = every day (spec HH:mm); 'weekly' = on certain weekdays (spec 'SUN 18:00' or 'MON,WED,FRI 07:30'), use this for anything weekly, never daily-with-a-day-check; 'interval' = every N minutes (spec minutes, min 15); 'email' = when a new email matches a Gmail search (spec e.g. 'from:bank@x.com', needs Gmail connected); 'notification' = the moment a phone notification arrives (spec 'App name|keyword', keyword optional, app must be allowed in Connections).",
         schema(listOf("name", "kind", "spec", "prompt"), "name" to str("Short name"), "kind" to enumOf("When it runs", "at", "daily", "weekly", "interval", "email", "notification"),
             "spec" to str("Time/interval/query per kind"), "prompt" to str("What you will do each time, written as an instruction to yourself")))
     override suspend fun run(input: JSONObject, ctx: ToolContext): String {
@@ -182,7 +182,7 @@ class ScheduleUpdateTool(private val dao: TriggerDao, private val onChange: susp
 }
 
 class ScheduleDeleteTool(private val dao: TriggerDao, private val onDelete: suspend (Long) -> Unit) : Tool {
-    override val spec = ToolSpec("routine_delete", "Delete a routine by id.", schema(listOf("id"), "id" to int("Routine id")))
+    override val spec = ToolSpec("routine_delete", "Delete a routine for good, by id. Not for changing one: that's routine_update.", schema(listOf("id"), "id" to int("Routine id")))
     override suspend fun run(input: JSONObject, ctx: ToolContext): String {
         val id = input.getLong("id"); dao.delete(id); onDelete(id); ctx.activity("Removed routine #$id"); return "Deleted."
     }
