@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="routine_silent">Avísame solo si me necesita</string>
+    <string name="routine_silent_line">Si no encuentra nada, no te escribe ni te notifica.</string>
+    <string name="routine_silent_nothing">Nada que contar</string>
+</resources>

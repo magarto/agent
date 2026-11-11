@@ -350,7 +350,7 @@ class AgentRuntime(
             TaskListTool(db.tasks()), TaskAddTool(db.tasks()), TaskUpdateTool(db.tasks()), TaskDeleteTool(db.tasks()),
             GoalCreateTool(db.tasks()), GoalUpdateTool(db.tasks()), GoalDeleteTool(db.tasks()),
             NotificationsTool(db.notifications()) { settings.state.value.notifApps }, com.past9.phoneaos.tools.NotificationActTool { settings.state.value.notifApps },
-            ScheduleListTool(db.triggers()),
+            ScheduleListTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context)),
             com.past9.phoneaos.tools.WakeScheduleTool(context), com.past9.phoneaos.tools.WakeListTool(context), com.past9.phoneaos.tools.WakeCancelTool(context), com.past9.phoneaos.tools.QuietHoursTool(context),
             AskUserTool(), NotifyTool(), VoiceNoteTool(context, settings, db.chat()),
             com.past9.phoneaos.tools.ReportTool(context) { item -> db.chat().insert(item.copy(meta = JSONObject(item.meta).apply { replyMeta(turn, this) }.toString())) },
@@ -430,9 +430,9 @@ class AgentRuntime(
         list += com.past9.phoneaos.cards.CardUpdateTool(cards); list += com.past9.phoneaos.cards.CardListTool(cards); list += com.past9.phoneaos.cards.CardShowTool(cards, db.chat())
         list += com.past9.phoneaos.cards.CardPinTool(cards)
         list += com.past9.phoneaos.cards.CardDeleteTool(cards) { c -> com.past9.phoneaos.cards.CardScripts.schedule(context, c, onRoutineChanged, onRoutineDeleted) }
-        list += ScheduleCreateTool(db.triggers()) { onRoutineChanged(it) }
-        list += ScheduleUpdateTool(db.triggers()) { onRoutineChanged(it) }
-        list += ScheduleListTool(db.triggers())
+        list += ScheduleCreateTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context)) { onRoutineChanged(it) }
+        list += ScheduleUpdateTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context)) { onRoutineChanged(it) }
+        list += ScheduleListTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context))
         list += com.past9.phoneaos.triggers.WatcherSaveTool(context) { onRoutineChanged(it) }
         list += ScheduleDeleteTool(db.triggers()) { onRoutineDeleted(it) }
         return list
