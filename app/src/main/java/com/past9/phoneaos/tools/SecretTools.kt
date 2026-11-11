@@ -12,7 +12,7 @@ import org.json.JSONObject
  * its placeholder before the model, the chat or a log sees it.
  */
 object AgentSecrets {
-    private val REF = Regex("""\{\{secret:([^}]*)}}""")
+    private val REF = Regex("""\{\{secret:([^\}]*)\}\}""")
     /** The stored values (name -> value), read fresh each call so a deleted secret stops working at once. Set by the app at start. */
     @Volatile var values: () -> Map<String, String> = { emptyMap() }
 

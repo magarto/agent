@@ -30,7 +30,7 @@ class RoutineBlocks(private val file: File) {
 
     companion object {
         private val LOCK = Any()
-        private val REF = Regex("""\{\{block:([^{}]*)\}\}""")
+        private val REF = Regex("""\{\{block:([^{\}]*)\}\}""")
         val NAME = Regex("[A-Za-z0-9_-]{1,40}")
 
         fun of(context: Context) = RoutineBlocks(File(context.filesDir, "routine_blocks.json"))
