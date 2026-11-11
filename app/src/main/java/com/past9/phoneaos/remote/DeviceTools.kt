@@ -63,6 +63,7 @@ object DeviceTools {
         "webapp_guide" to "Teaching and saving a web app is done by the agent that owns it.", "webapp_save" to "Teaching and saving a web app is done by the agent that owns it.",
         "webapp_remove" to "Removing a learned app is the person's or the phone agent's call.",
         "watcher_save" to "Watchers run in the phone's own agent.",
+        "secrets_list" to "Secrets stay on the phone; the computer keeps its own.",
     ) + listOf("delegate", "helpers_status", "helper_steer", "helper_push", "helper_stop", "escalation_triage", "agent_pin", "agent_unpin", "agents_pinned").associateWith { "Runs the phone's own helpers; the computer has its own." } +
         listOf("routine_create", "routine_list", "routine_update", "routine_delete", "wake_schedule", "wake_list", "wake_cancel", "quiet_hours").associateWith { "The phone agent's own routines and wake-ups; the computer has its own." } +
         listOf("memory_search", "memory_save", "memory_get", "memory_update", "skill_save", "skill_find", "goal_create", "goal_update", "goal_delete", "task_add", "task_update", "task_delete", "task_list").associateWith { "The phone agent's own memory and tasks; a linked computer is the one that holds them." } +
@@ -124,7 +125,7 @@ object DeviceTools {
             ?: return false to "This phone doesn't lend $name (it's off in its settings, or it has no such tool)."
         val out = withTimeoutOrNull(deadlineMs.coerceIn(1_000, 600_000)) { runCatching { tool.run(args, LentContext(context, session)) } }
             ?: return false to "The phone didn't finish $name in time."
-        return out.fold({ true to withImages(it) }, { false to (it.message ?: it::class.java.simpleName) })
+        return out.fold({ true to withImages(com.past9.phoneaos.tools.AgentSecrets.redact(it)) }, { false to com.past9.phoneaos.tools.AgentSecrets.redact(it.message ?: it::class.java.simpleName) })
     }
 
     private val IMAGE = Regex("""\[\[image:([^\]]+)]]""")

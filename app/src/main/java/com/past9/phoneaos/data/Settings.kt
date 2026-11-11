@@ -290,6 +290,20 @@ class SettingsStore(context: Context) {
     fun secret(key: String): String? = secrets.getString("s_$key", null)
     fun setSecret(key: String, value: String?) { secrets.edit().apply { if (value.isNullOrEmpty()) remove("s_$key") else putString("s_$key", value) }.apply() }
 
+    /** Secrets the agent may use but never read (Settings > Automation > Secrets): name -> the user's note. Values are kept encrypted. */
+    fun agentSecrets(): Map<String, String> = runCatching {
+        org.json.JSONObject(extra("agent_secrets") ?: "{}").let { o -> o.keys().asSequence().associateWith { o.optString(it) } }
+    }.getOrDefault(emptyMap())
+    fun agentSecretValues(): Map<String, String> = agentSecrets().keys.mapNotNull { n -> secret("agent_$n")?.let { n to it } }.toMap()
+    fun setAgentSecret(name: String, value: String, note: String) {
+        setSecret("agent_$name", value)
+        setExtra("agent_secrets", org.json.JSONObject((agentSecrets() + (name to note.trim())) as Map<*, *>).toString())
+    }
+    fun removeAgentSecret(name: String) {
+        setSecret("agent_$name", null)
+        setExtra("agent_secrets", org.json.JSONObject((agentSecrets() - name) as Map<*, *>).toString())
+    }
+
     // ---- browser: sites that need advanced browser features, and the agent's voice in WhatsApp calls --------------------
 
     /** Sites the browser lets use shared memory (SharedArrayBuffer). Starts as [com.past9.phoneaos.browser.IsolatedOrigins.DEFAULT]; an emptied list stays empty. */

@@ -109,7 +109,7 @@ class LocalMcpServer(
                 val name = params.optString("name"); val tool = tools().firstOrNull { it.spec.name == name } ?: return err(-32602, "Unknown tool $name")
                 val (text, isErr) = try { runBlocking { tool.run(params.optJSONObject("arguments") ?: JSONObject(), context()) } to false }
                     catch (e: CancellationException) { throw e } catch (e: Exception) { "Error: ${e.message}" to true }
-                ok(JSONObject().put("content", JSONArray().put(JSONObject().put("type", "text").put("text", text))).put("isError", isErr))
+                ok(JSONObject().put("content", JSONArray().put(JSONObject().put("type", "text").put("text", com.past9.phoneaos.tools.AgentSecrets.redact(text)))).put("isError", isErr))
             }
             else -> err(-32601, "Method not found")
         }
