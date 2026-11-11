@@ -77,7 +77,7 @@ object Watchers {
         meta.put("breaks", 0).put("state", o.state)
         g.db.triggers().upsert(t.copy(cursor = meta.toString()))
         if (o.fire) {
-            g.runtime.runBackground(t.name, "Your watcher \"${t.name}\" just fired: ${o.message}\n\n${t.prompt}")
+            g.runtime.runBackground(t.name, "Your watcher \"${t.name}\" just fired: ${o.message}\n\n${RoutineBlocks.expand(context, t.prompt)}")
             return context.getString(com.past9.phoneaos.R.string.svc_watch_fired, o.message)
         }
         return o.message.ifBlank { context.getString(com.past9.phoneaos.R.string.svc_watch_nothing_yet) }

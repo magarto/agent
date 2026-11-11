@@ -149,6 +149,7 @@ private fun RoutineRow(r: TriggerRow, actions: RoutineActions, now: java.time.Zo
                 Column(Modifier.weight(1f)) {
                     Text(r.name, style = MaterialTheme.typography.titleMedium, color = if (r.enabled) cs.onSurface else cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(whenLabel(r), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    com.past9.phoneaos.triggers.RoutineBlocks.usedIn(r.prompt).takeIf { it.isNotEmpty() }?.joinToString()?.let { Text(stringResource(R.string.routine_blocks_uses, it), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
                 Spacer(Modifier.width(8.dp))
                 Switch(r.enabled, { actions.onToggle(r) })
