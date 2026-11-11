@@ -131,7 +131,7 @@ class SubscriptionRuntime(private val context: Context, val kind: SubKind) {
         check(node.exists()) { "The Node runtime pack did not unpack. Try again." }
         spec.nativeBins.forEach { check(File(bin, it).exists()) { "The ${kind.label} runtime pack did not unpack. Try again." } }
         linkBins()
-        if (kind == SubKind.CLAUDE) check(File(bin, "ld-musl-aarch64.so.1").let { it.isFile && it.path == CLAUDE_INTERP }) {
+        if (kind == SubKind.CLAUDE) check(File(bin, "ld-musl-aarch64.so.1").isFile) {
             "Claude Code can't run from this app's folder (${bin.path}); it expects $CLAUDE_INTERP"
         }
         // Prove Android really lets this app execute the downloaded binary (targetSdk 28). If this fails,
@@ -160,7 +160,7 @@ class SubscriptionRuntime(private val context: Context, val kind: SubKind) {
     suspend fun login(onUrl: (String) -> Unit, progress: (String) -> Unit, needsCode: () -> Unit = {}): String? = withContext(Dispatchers.IO) {
         if (!installed) return@withContext context.getString(com.past9.phoneaos.R.string.rt_not_downloaded, kind.label)
         val cmd = when (kind) {
-            SubKind.CLAUDE -> listOf(File(bin, "claude").path, "auth", "login", "--claudeai")
+            SubKind.CLAUDE -> listOf(claudeBin().path, "auth", "login", "--claudeai")
             SubKind.CODEX -> listOf(File(bin, "codex").path, "login")
             SubKind.OPENCODE -> return@withContext context.getString(com.past9.phoneaos.R.string.rt_opencode_signin_unavailable)
             SubKind.ANTIGRAVITY -> listOf(File(bin, "antigravity").path, "-p", "Signing in", "--output-format", "stream-json",
@@ -200,6 +200,18 @@ class SubscriptionRuntime(private val context: Context, val kind: SubKind) {
 
     fun cancelLogin() { runCatching { loginStdin?.close() } }
 
+    /**
+     * The claude binary's ELF interpreter is fixed to the release package's folder (CLAUDE_INTERP). Any other package
+     * (a side-by-side or debug build) runs it through the musl loader instead, which needs no patching of the pinned binary.
+     */
+    private fun claudeBin(): File {
+        val claude = File(bin, "claude"); val loader = File(bin, "ld-musl-aarch64.so.1")
+        if (loader.path == CLAUDE_INTERP) return claude
+        return File(bin, "claude-via-loader").apply {
+            writeText("#!/system/bin/sh\nexec \"${loader.path}\" \"${claude.path}\" \"\$@\"\n"); setExecutable(true, false)
+        }
+    }
+
     /** Make every downloaded executable runnable. No symlinks: the packs put the real files in bin/. */
     fun linkBins() {
         bin.mkdirs()
@@ -220,7 +232,7 @@ class SubscriptionRuntime(private val context: Context, val kind: SubKind) {
             "OPENSSL_CONF" to File(dir, "openssl.cnf").apply { if (!exists()) writeText("") }.path,
             "USE_BUILTIN_RIPGREP" to "0", "DISABLE_AUTOUPDATER" to "1", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC" to "1",
             "CODEX_HOME" to File(home, ".codex").apply { mkdirs() }.path, "CODEX_BIN" to File(bin, "codex").path,
-            "CLAUDE_BIN" to File(bin, "claude").path, "ANTIGRAVITY_BIN" to File(bin, "antigravity").path,
+            "CLAUDE_BIN" to claudeBin().path, "ANTIGRAVITY_BIN" to File(bin, "antigravity").path,
         )
         if (kind == SubKind.OPENCODE) return base
         // musl/Go binaries read /etc/resolv.conf, which Android lacks. Our proxy does DNS for them.
