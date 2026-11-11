@@ -63,6 +63,8 @@ data class SettingsActions(
     val macro: MacroActions = MacroActions(),
     /** Settings > Media apps: which app plays music and which plays video. */
     val media: MediaAppsActions = MediaAppsActions(),
+    /** Settings > Automation > Secrets: how many the user stored (the sheet itself reads and writes the store). */
+    val secretCount: () -> Int = { 0 },
     /** Settings > Browser: sites that may use shared memory in the agent's browser, and the agent's voice in WhatsApp calls. */
     val browser: BrowserSettingsActions = BrowserSettingsActions(),
     val linkedLine: String = "Use the agent on your computer from this phone",
@@ -189,6 +191,11 @@ fun SettingsScreen(s: AgentSettings, runtime: RuntimeInfo, version: String, acti
                 val mctx = androidx.compose.ui.platform.LocalContext.current
                 val mediaLine = remember(mediaSheet) { MediaAppsUi.line(actions.media.rows(), actions.media.music(), actions.media.video(), mctx) }
                 Line(Icons.Rounded.LibraryMusic, stringResource(R.string.settings_media_apps), mediaLine) { mediaSheet = true }
+                var secretsSheet by remember { mutableStateOf(false) }
+                val secretCount = remember(secretsSheet) { actions.secretCount() }
+                Line(Icons.Rounded.Lock, stringResource(R.string.secrets_title),
+                    if (secretCount == 0) stringResource(R.string.secrets_line_none) else stringResource(R.string.secrets_line_count, secretCount)) { secretsSheet = true }
+                if (secretsSheet) SecretsSheet { secretsSheet = false }
             }
             SectionHeader(stringResource(R.string.settings_bg_screen), stringResource(R.string.settings_bg_screen_sub), Modifier.padding(start = 4.dp, top = 12.dp))
             AppCard(padding = PaddingValues(vertical = 4.dp)) {

@@ -124,7 +124,7 @@ object DeviceTools {
             ?: return false to "This phone doesn't lend $name (it's off in its settings, or it has no such tool)."
         val out = withTimeoutOrNull(deadlineMs.coerceIn(1_000, 600_000)) { runCatching { tool.run(args, LentContext(context, session)) } }
             ?: return false to "The phone didn't finish $name in time."
-        return out.fold({ true to withImages(it) }, { false to (it.message ?: it::class.java.simpleName) })
+        return out.fold({ true to withImages(com.past9.phoneaos.tools.AgentSecrets.redact(it)) }, { false to com.past9.phoneaos.tools.AgentSecrets.redact(it.message ?: it::class.java.simpleName) })
     }
 
     private val IMAGE = Regex("""\[\[image:([^\]]+)]]""")

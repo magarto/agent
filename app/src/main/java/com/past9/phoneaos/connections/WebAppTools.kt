@@ -151,7 +151,8 @@ object WebAppRun {
         val id = ctx.activity("${app.name}: ${t.name.replace('_', ' ')}", JSONObject().put("tool", "browser"))
         val out = try {
             runner.ensure(app, ctx)
-            WebApps.result(runner.run(t.js, input, ctx))
+            // Secrets go in after the approval above, which shows the placeholders.
+            WebApps.result(runner.run(t.js, com.past9.phoneaos.tools.AgentSecrets.fill(input), ctx))
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Throwable) {
             android.util.Log.w("AgentWebApp", "${app.name}.${t.name} failed", e)
             "Error: couldn't run ${t.name} (${e.message ?: e::class.java.simpleName}). If it says too many browsers, finish a helper or close one and try again."
