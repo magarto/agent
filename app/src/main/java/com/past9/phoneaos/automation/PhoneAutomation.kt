@@ -59,6 +59,8 @@ class PhoneAutomation(
             "interval" -> "Every ${t.spec} minutes"
             "email" -> "When an email matches \"${t.spec}\""
             "notification" -> "When a notification arrives from ${t.spec}"
+            com.past9.phoneaos.triggers.Places.KIND -> com.past9.phoneaos.triggers.Places.parseSpec(t.spec)!!.let { (p, arrive) -> if (arrive) "When you arrive at $p" else "When you leave $p" }
+            com.past9.phoneaos.triggers.BluetoothTrigger.KIND -> com.past9.phoneaos.triggers.BluetoothTrigger.parseSpec(t.spec)!!.let { (d, on) -> if (on) "When $d connects" else "When $d disconnects" }
             else -> "${t.kind.replaceFirstChar { it.uppercase() }} ${t.spec}".trim()
         }
     }.getOrDefault(t.kind)

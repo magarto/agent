@@ -367,7 +367,7 @@ class AgentRuntime(
             com.past9.phoneaos.cards.CardListTool(cards), com.past9.phoneaos.cards.CardShowTool(cards, db.chat()), com.past9.phoneaos.cards.CardPinTool(cards),
         )
         // Small jobs (a page, a quick lookup) it may do itself, within the step budget. Routines and watchers stay with helpers.
-        val mine = own.map { it.spec.name }.toSet() + setOf("report", "routine_create", "routine_update", "routine_delete", "block_save", "block_list", "block_delete", "watcher_save", "skill_save", "skill_find",
+        val mine = own.map { it.spec.name }.toSet() + setOf("report", "routine_create", "routine_update", "routine_delete", "block_save", "block_list", "block_delete", "watcher_save", "place_save", "place_delete", "skill_save", "skill_find",
             "card_guide", "card_save", "card_update", "card_delete")
         return (own + workerTools().filter { it.spec.name !in mine }.map { Budgeted(it, turn.line.budget) })
             .map { Capped(it, turn.line.calls) }
@@ -430,12 +430,14 @@ class AgentRuntime(
         list += com.past9.phoneaos.cards.CardUpdateTool(cards); list += com.past9.phoneaos.cards.CardListTool(cards); list += com.past9.phoneaos.cards.CardShowTool(cards, db.chat())
         list += com.past9.phoneaos.cards.CardPinTool(cards)
         list += com.past9.phoneaos.cards.CardDeleteTool(cards) { c -> com.past9.phoneaos.cards.CardScripts.schedule(context, c, onRoutineChanged, onRoutineDeleted) }
-        list += ScheduleCreateTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context)) { onRoutineChanged(it) }
-        list += ScheduleUpdateTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context)) { onRoutineChanged(it) }
+        list += ScheduleCreateTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context), context) { onRoutineChanged(it) }
+        list += ScheduleUpdateTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context), context) { onRoutineChanged(it) }
         list += ScheduleListTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context))
         val blocks = com.past9.phoneaos.triggers.RoutineBlocks.of(context)
         list += com.past9.phoneaos.triggers.BlockSaveTool(blocks); list += com.past9.phoneaos.triggers.BlockListTool(blocks, db.triggers())
         list += com.past9.phoneaos.triggers.BlockDeleteTool(blocks, db.triggers())
+        list += com.past9.phoneaos.triggers.PlaceSaveTool(context); list += com.past9.phoneaos.triggers.PlaceListTool(context); list += com.past9.phoneaos.triggers.PlaceDeleteTool(context)
+        list += com.past9.phoneaos.triggers.BluetoothDevicesTool(context)
         list += com.past9.phoneaos.triggers.WatcherSaveTool(context) { onRoutineChanged(it) }
         list += ScheduleDeleteTool(db.triggers()) { onRoutineDeleted(it) }
         return list
