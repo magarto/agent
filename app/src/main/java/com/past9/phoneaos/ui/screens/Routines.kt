@@ -149,6 +149,7 @@ private fun RoutineRow(r: TriggerRow, actions: RoutineActions, now: java.time.Zo
                 Column(Modifier.weight(1f)) {
                     Text(r.name, style = MaterialTheme.typography.titleMedium, color = if (r.enabled) cs.onSurface else cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(whenLabel(r), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    windowLabel(r)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
                 Spacer(Modifier.width(8.dp))
                 Switch(r.enabled, { actions.onToggle(r) })
@@ -164,6 +165,20 @@ private fun RoutineRow(r: TriggerRow, actions: RoutineActions, now: java.time.Zo
             }
         }
     }
+}
+
+/** The days, hours and days off a routine keeps to (set by the agent), or null when it has none. */
+@Composable
+private fun windowLabel(r: TriggerRow): String? {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val o = remember(r) { com.past9.phoneaos.triggers.RoutineOptions.get(com.past9.phoneaos.triggers.RoutineOptions.dir(ctx), r.id) }
+    val locale = ctx.resources.configuration.locales[0]
+    return listOfNotNull(
+        o.days.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(", ") { java.time.DayOfWeek.of(it).getDisplayName(java.time.format.TextStyle.SHORT, locale) },
+        o.from?.let { stringResource(R.string.routine_window_hours, it.toString(), o.to.toString()) },
+        o.holidays.takeIf { it.isNotBlank() }?.let { stringResource(R.string.routine_window_holidays, it) },
+        o.skipDates.size.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.routine_window_dates, it, it) },
+    ).joinToString(" · ").ifEmpty { null }
 }
 
 private data class Template(val name: String, val kind: String, val spec: String, val prompt: String, val icon: ImageVector)

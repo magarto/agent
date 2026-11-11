@@ -269,7 +269,21 @@ class RoutineWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         }
         var prompt = inputData.getString("context").orEmpty() + lateNote + t.prompt
         var cursor = t.cursor
-        if (t.kind == "email" && !manual) {
+        val options = RoutineOptions.get(RoutineOptions.dir(applicationContext), id)
+        // Run now from the Routines screen ignores the days, hours and holidays: the user asked for this run there and then.
+        var holidayNote = ""
+        val skip = if (manual) null else when (options.skip(java.time.LocalDateTime.now())) {
+            RoutineOptions.Skip.DATE -> applicationContext.getString(com.past9.phoneaos.R.string.routine_window_skip_date)
+            RoutineOptions.Skip.DAY -> applicationContext.getString(com.past9.phoneaos.R.string.routine_window_skip_day)
+            RoutineOptions.Skip.HOURS -> applicationContext.getString(com.past9.phoneaos.R.string.routine_window_skip_hours)
+            null -> if (options.holidays.isBlank()) null else when (Holidays.isHoliday(applicationContext, java.time.LocalDate.now(), options.holidays)) {
+                true -> applicationContext.getString(com.past9.phoneaos.R.string.routine_window_skip_holiday)
+                false -> null
+                null -> { holidayNote = applicationContext.getString(com.past9.phoneaos.R.string.routine_window_holidays_unknown, options.holidays) + "\n"; null }
+            }
+        }
+        // Skipped: no Gmail check either, so a matching email still fires the routine once the window opens.
+        if (skip == null && t.kind == "email" && !manual) {
             // Event trigger: only run when a NEW email matches the search.
             val call = runCatching { g.runtime.composio.execute("GMAIL_FETCH_EMAILS", JSONObject().put("query", t.spec).put("max_results", 3)) }
             val res = call.getOrNull() ?: run {
@@ -286,12 +300,12 @@ class RoutineWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             prompt = "A new email matched \"${t.spec}\" (message id $newest). Read it with your Gmail tools, then: ${t.prompt}"
         }
 
-        val silent = RoutineOptions.get(RoutineOptions.dir(applicationContext), id).silent
+        val silent = skip == null && options.silent
         if (silent) prompt += RoutineOptions.SILENT_NOTE
-        val out = g.runtime.runBackground(t.name, prompt, silentIf = if (silent) WakePlan::isQuiet else null)
+        val out = skip ?: g.runtime.runBackground(t.name, prompt, silentIf = if (silent) WakePlan::isQuiet else null)
         val quiet = silent && WakePlan.isQuiet(out)
         payload = out.takeUnless { quiet }
-        val result = if (quiet) applicationContext.getString(com.past9.phoneaos.R.string.routine_silent_nothing) else out
+        val result = holidayNote + if (quiet) applicationContext.getString(com.past9.phoneaos.R.string.routine_silent_nothing) else out
         // Re-read: the row may have been edited while this ran.
         val now = g.db.triggers().get(id) ?: return Result.success()
         g.db.triggers().upsert(now.copy(lastRunAt = System.currentTimeMillis(), lastResult = result.take(500), cursor = cursor,

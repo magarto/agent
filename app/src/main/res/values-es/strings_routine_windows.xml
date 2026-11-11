@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="routine_window_hours">%1$s–%2$s</string>
+    <string name="routine_window_holidays">no en festivos (%1$s)</string>
+    <plurals name="routine_window_dates">
+        <item quantity="one">%d día libre</item>
+        <item quantity="many">%d días libres</item>
+        <item quantity="other">%d días libres</item>
+    </plurals>
+    <string name="routine_window_skip_date">Saltada: día marcado para saltar</string>
+    <string name="routine_window_skip_day">Saltada: no es uno de sus días</string>
+    <string name="routine_window_skip_hours">Saltada: fuera de su horario</string>
+    <string name="routine_window_skip_holiday">Saltada: día festivo</string>
+    <string name="routine_window_holidays_unknown">No pude obtener los festivos de %1$s, así que se ejecutó igualmente.</string>
+</resources>
