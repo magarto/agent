@@ -69,7 +69,7 @@ object Routines {
         "interval", Watchers.KIND, com.past9.phoneaos.cards.CardScripts.KIND -> t.lastRunAt?.let { (it + (t.spec.toLongOrNull() ?: 60) * 60_000 - now.toInstant().toEpochMilli()).coerceAtLeast(0) } ?: ((t.spec.toLongOrNull() ?: 60) * 60_000)
         "email" -> 15 * 60_000L
         Wakes.KIND -> t.spec.toLongOrNull()?.let { it - now.toInstant().toEpochMilli() }?.coerceAtLeast(0)
-        else -> null // "notification" fires on arrival, not on a clock
+        else -> null // "notification", "place" and "bluetooth" fire on an event, not on a clock
     }
 
     /** The scheduled moment (epoch ms) of the next run of a clock-based routine, or null. */
@@ -109,6 +109,7 @@ object Routines {
         val g = App.graph(context)
         val store = PrefsRunStore(context)
         val wm = WorkManager.getInstance(context)
+        runCatching { Places.arm(context) }; runCatching { BluetoothTrigger.sync(context) }
         for (t in g.db.triggers().list().filter { it.enabled }) {
             ensureScheduled(context, t)
             val due = lastDue(t, now) ?: continue
@@ -130,6 +131,7 @@ object Routines {
 
     fun schedule(context: Context, t: TriggerRow) {
         val wm = WorkManager.getInstance(context)
+        syncEvents(context)
         // Wakes have their own clock (one alarm for all of them, merged): see Wakes.
         if (t.kind == Wakes.KIND) { App.graph(context).scope.launch { runCatching { Wakes.rearm(context) } }; return }
         if (!t.enabled || t.kind !in timed) com.past9.phoneaos.system.ExactAlarms.cancel(context, com.past9.phoneaos.system.ExactAlarms.ACTION_ROUTINE, t.id)
@@ -198,7 +200,13 @@ object Routines {
 
     fun cancel(context: Context, id: Long) {
         WorkManager.getInstance(context).cancelUniqueWork(name(id))
+        syncEvents(context)
         com.past9.phoneaos.system.ExactAlarms.cancel(context, com.past9.phoneaos.system.ExactAlarms.ACTION_ROUTINE, id)
+    }
+
+    /** Place alerts and the Bluetooth listener follow whichever routines use them now. */
+    fun syncEvents(context: Context) {
+        runCatching { App.graph(context).scope.launch { runCatching { Places.arm(context) }; runCatching { BluetoothTrigger.sync(context) } } }
     }
 
     suspend fun rescheduleAll(context: Context) = App.graph(context).db.triggers().list().forEach { schedule(context, it) }

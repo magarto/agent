@@ -128,10 +128,11 @@ class ApprovalTool : Tool {
     }
 }
 
-class ScheduleCreateTool(private val dao: TriggerDao, private val onChange: suspend (TriggerRow) -> Unit) : Tool {
-    override val spec = ToolSpec("routine_create", "Create a NEW routine (to change one that exists, use routine_update: never create a copy and delete the old one): a prompt you will run later by yourself. kind 'at' = once at a time (spec ISO like 2026-10-06T07:30); 'daily' = every day (spec HH:mm); 'weekly' = on certain weekdays (spec 'SUN 18:00' or 'MON,WED,FRI 07:30'), use this for anything weekly, never daily-with-a-day-check; 'interval' = every N minutes (spec minutes, min 15); 'email' = when a new email matches a Gmail search (spec e.g. 'from:bank@x.com', needs Gmail connected); 'notification' = the moment a phone notification arrives (spec 'App name|keyword', keyword optional, app must be allowed in Connections).",
-        schema(listOf("name", "kind", "spec", "prompt"), "name" to str("Short name"), "kind" to enumOf("When it runs", "at", "daily", "weekly", "interval", "email", "notification"),
-            "spec" to str("Time/interval/query per kind"), "prompt" to str("What you will do each time, written as an instruction to yourself")))
+class ScheduleCreateTool(private val dao: TriggerDao, private val context: android.content.Context? = null, private val onChange: suspend (TriggerRow) -> Unit) : Tool {
+    override val spec = ToolSpec("routine_create", "Create a NEW routine (to change one that exists, use routine_update: never create a copy and delete the old one): a prompt you will run later by yourself. kind 'at' = once at a time (spec ISO like 2026-10-06T07:30); 'daily' = every day (spec HH:mm); 'weekly' = on certain weekdays (spec 'SUN 18:00' or 'MON,WED,FRI 07:30'), use this for anything weekly, never daily-with-a-day-check; 'interval' = every N minutes (spec minutes, min 15); 'email' = when a new email matches a Gmail search (spec e.g. 'from:bank@x.com', needs Gmail connected); 'notification' = the moment a phone notification arrives (spec 'App name|keyword', keyword optional, app must be allowed in Connections); " +
+        "'place' = on arriving at or leaving a place saved with place_save (spec 'Place name|arrive' or 'Place name|leave'); 'bluetooth' = when a paired Bluetooth device connects or disconnects (spec 'Device name or address', optionally '|connect' or '|disconnect', default connect; see bluetooth_devices).",
+        schema(listOf("name", "kind", "spec", "prompt"), "name" to str("Short name"), "kind" to enumOf("When it runs", "at", "daily", "weekly", "interval", "email", "notification", "place", "bluetooth"),
+            "spec" to str("Time/interval/query per kind; place: 'Place name|arrive' or '|leave'; bluetooth: 'Device name|connect' or '|disconnect'"), "prompt" to str("What you will do each time, written as an instruction to yourself")))
     override suspend fun run(input: JSONObject, ctx: ToolContext): String {
         val kind = input.optString("kind")
         val spec = input.optString("spec").trim()
@@ -144,7 +145,7 @@ class ScheduleCreateTool(private val dao: TriggerDao, private val onChange: susp
         val id = dao.upsert(row)
         onChange(row.copy(id = id))
         ctx.activity("New routine: ${row.name}", JSONObject().put("tool", "routines"))
-        return "Routine #$id created."
+        return "Routine #$id created." + eventWarning(context, kind, spec)
     }
 }
 
@@ -156,8 +157,19 @@ fun routineSpecError(kind: String, spec: String): String? = when (kind) {
     "interval" -> if ((spec.toIntOrNull() ?: 0) < 15) "spec must be minutes, at least 15" else null
     "email" -> null
     "notification" -> if (spec.substringBefore('|').isBlank()) "spec must start with the app name" else null
+    com.past9.phoneaos.triggers.Places.KIND -> if (com.past9.phoneaos.triggers.Places.parseSpec(spec) == null) "spec must be 'Place name|arrive' or 'Place name|leave'" else null
+    com.past9.phoneaos.triggers.BluetoothTrigger.KIND -> if (com.past9.phoneaos.triggers.BluetoothTrigger.parseSpec(spec) == null) "spec must be the device name or address, optionally followed by '|connect' or '|disconnect'" else null
     else -> "unknown kind"
 }
+
+/** Why a place or Bluetooth routine can't fire yet (unknown place or device, a missing permission), for the agent to act on. */
+private fun eventWarning(context: android.content.Context?, kind: String, spec: String): String = context?.let {
+    when (kind) {
+        com.past9.phoneaos.triggers.Places.KIND -> com.past9.phoneaos.triggers.Places.warning(it, spec)
+        com.past9.phoneaos.triggers.BluetoothTrigger.KIND -> com.past9.phoneaos.triggers.BluetoothTrigger.warning(it, spec)
+        else -> null
+    }
+}?.let { " Warning: $it" } ?: ""
 
 class ScheduleListTool(private val dao: TriggerDao) : Tool {
     override val spec = ToolSpec("routine_list", "List the routines (scheduled and triggered runs), each with its whole prompt.", schema())
@@ -166,11 +178,11 @@ class ScheduleListTool(private val dao: TriggerDao) : Tool {
         dao.list().filter { it.kind != "wake" }.joinToString("\n\n") { "#${it.id} ${it.name} [${it.kind} ${it.spec}]${if (!it.enabled) " (paused)" else ""}:\n${it.prompt}" }.ifBlank { "No routines." }
 }
 
-class ScheduleUpdateTool(private val dao: TriggerDao, private val onChange: suspend (TriggerRow) -> Unit) : Tool {
+class ScheduleUpdateTool(private val dao: TriggerDao, private val context: android.content.Context? = null, private val onChange: suspend (TriggerRow) -> Unit) : Tool {
     override val spec = ToolSpec("routine_update", "Change a routine in place: its name, schedule (kind and spec as in routine_create), prompt, or pause/resume it. Only what you pass changes. " +
         "To change part of the prompt, start from the whole prompt routine_list shows and keep everything the user didn't ask to change. Never recreate a routine to edit it.",
-        schema(listOf("id"), "id" to int("Routine id"), "name" to str("New name"), "kind" to enumOf("When it runs", "at", "daily", "weekly", "interval", "email", "notification"),
-            "spec" to str("New time/interval/query per kind"), "prompt" to str("The new whole prompt"), "enabled" to bool("false pauses it, true resumes it")))
+        schema(listOf("id"), "id" to int("Routine id"), "name" to str("New name"), "kind" to enumOf("When it runs", "at", "daily", "weekly", "interval", "email", "notification", "place", "bluetooth"),
+            "spec" to str("New time/interval/query per kind; place: 'Place name|arrive' or '|leave'; bluetooth: 'Device name|connect' or '|disconnect'"), "prompt" to str("The new whole prompt"), "enabled" to bool("false pauses it, true resumes it")))
     override suspend fun run(input: JSONObject, ctx: ToolContext): String {
         val t = dao.get(input.getLong("id")) ?: return "No such routine"
         val kind = input.optString("kind").ifBlank { t.kind }
@@ -181,7 +193,7 @@ class ScheduleUpdateTool(private val dao: TriggerDao, private val onChange: susp
         dao.upsert(updated)
         onChange(updated)
         ctx.activity("Changed routine: ${updated.name}", JSONObject().put("tool", "routines"))
-        return "Routine #${t.id} updated${if (!updated.enabled) " (paused)" else ""}."
+        return "Routine #${t.id} updated${if (!updated.enabled) " (paused)" else ""}." + eventWarning(context, kind, spec)
     }
 }
 
