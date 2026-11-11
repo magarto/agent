@@ -131,7 +131,7 @@ class ApprovalTool : Tool {
 class ScheduleCreateTool(private val dao: TriggerDao, private val onChange: suspend (TriggerRow) -> Unit) : Tool {
     override val spec = ToolSpec("routine_create", "Create a NEW routine (to change one that exists, use routine_update: never create a copy and delete the old one): a prompt you will run later by yourself. kind 'at' = once at a time (spec ISO like 2026-10-06T07:30); 'daily' = every day (spec HH:mm); 'weekly' = on certain weekdays (spec 'SUN 18:00' or 'MON,WED,FRI 07:30'), use this for anything weekly, never daily-with-a-day-check; 'interval' = every N minutes (spec minutes, min 15); 'email' = when a new email matches a Gmail search (spec e.g. 'from:bank@x.com', needs Gmail connected); 'notification' = the moment a phone notification arrives (spec 'App name|keyword', keyword optional, app must be allowed in Connections).",
         schema(listOf("name", "kind", "spec", "prompt"), "name" to str("Short name"), "kind" to enumOf("When it runs", "at", "daily", "weekly", "interval", "email", "notification"),
-            "spec" to str("Time/interval/query per kind"), "prompt" to str("What you will do each time, written as an instruction to yourself")))
+            "spec" to str("Time/interval/query per kind"), "prompt" to str("What you will do each time, written as an instruction to yourself. Rules shared with other routines can go in a block (block_save) and be included as {{block:<name>}}")))
     override suspend fun run(input: JSONObject, ctx: ToolContext): String {
         val kind = input.optString("kind")
         val spec = input.optString("spec").trim()

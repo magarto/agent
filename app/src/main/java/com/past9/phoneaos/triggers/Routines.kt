@@ -265,7 +265,8 @@ class RoutineWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             if (verdict == RunLedger.Verdict.RERUN) lateNote = "(The app was closed partway through the last attempt at this, so some of it may already be done. Check before you redo anything.)\n"
             if (System.currentTimeMillis() - slot > 10 * 60_000) lateNote += "(This was due at ${java.time.Instant.ofEpochMilli(slot).atZone(java.time.ZoneId.systemDefault()).toLocalTime().withSecond(0).withNano(0)} and runs late because the phone or app was off then. Run it once; don't repeat missed days.)\n"
         }
-        var prompt = inputData.getString("context").orEmpty() + lateNote + t.prompt
+        val body = RoutineBlocks.expand(applicationContext, t.prompt)
+        var prompt = inputData.getString("context").orEmpty() + lateNote + body
         var cursor = t.cursor
         if (t.kind == "email" && !manual) {
             // Event trigger: only run when a NEW email matches the search.
@@ -281,7 +282,7 @@ class RoutineWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             if (cursor.isBlank()) { g.db.triggers().upsert(t.copy(cursor = newest)); return Result.success() } // first look: just remember
             if (newest == cursor) return Result.success()
             cursor = newest
-            prompt = "A new email matched \"${t.spec}\" (message id $newest). Read it with your Gmail tools, then: ${t.prompt}"
+            prompt = "A new email matched \"${t.spec}\" (message id $newest). Read it with your Gmail tools, then: $body"
         }
 
         val out = g.runtime.runBackground(t.name, prompt)

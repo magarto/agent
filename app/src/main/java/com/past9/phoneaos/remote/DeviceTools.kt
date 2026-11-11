@@ -64,7 +64,7 @@ object DeviceTools {
         "webapp_remove" to "Removing a learned app is the person's or the phone agent's call.",
         "watcher_save" to "Watchers run in the phone's own agent.",
     ) + listOf("delegate", "helpers_status", "helper_steer", "helper_push", "helper_stop", "escalation_triage", "agent_pin", "agent_unpin", "agents_pinned").associateWith { "Runs the phone's own helpers; the computer has its own." } +
-        listOf("routine_create", "routine_list", "routine_update", "routine_delete", "wake_schedule", "wake_list", "wake_cancel", "quiet_hours").associateWith { "The phone agent's own routines and wake-ups; the computer has its own." } +
+        listOf("routine_create", "routine_list", "routine_update", "routine_delete", "block_save", "block_list", "block_delete", "wake_schedule", "wake_list", "wake_cancel", "quiet_hours").associateWith { "The phone agent's own routines and wake-ups; the computer has its own." } +
         listOf("memory_search", "memory_save", "memory_get", "memory_update", "skill_save", "skill_find", "goal_create", "goal_update", "goal_delete", "task_add", "task_update", "task_delete", "task_list").associateWith { "The phone agent's own memory and tasks; a linked computer is the one that holds them." } +
         listOf("card_guide", "card_save", "card_update", "card_list", "card_show", "card_pin", "card_delete").associateWith { "Cards in the phone's own chat." } +
         listOf("machine_list", "machine_run", "machine_job_start", "machine_job_status", "machine_upload", "machine_download", "send_file", "machine_handoff", "machine_handoff_status", "machine_host_setup").associateWith { "The phone agent reaching computers; a computer does not need the phone for that." } +
