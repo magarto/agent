@@ -820,6 +820,7 @@ class MainActivity : ComponentActivity() {
                                 com.past9.phoneaos.automation.IntentRules.ACTIVITY, Intent.ACTION_VIEW, data = "geo:0,0?q=Sandton+City")) },
                             test = { name -> com.past9.phoneaos.automation.MacroSender(this@MainActivity).broadcast(com.past9.phoneaos.automation.MacroCall(name, v1 = "hello")) },
                         ),
+                        secretCount = { g.settings.agentSecrets().size },
                         media = com.past9.phoneaos.ui.screens.MediaAppsActions(
                             rows = {
                                 val deps = com.past9.phoneaos.media.AndroidMediaDeps(this@MainActivity)

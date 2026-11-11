@@ -34,6 +34,7 @@ class Graph(context: Context) {
     }
     init {
         com.past9.phoneaos.triggers.Routines.appContext = app
+        com.past9.phoneaos.tools.AgentSecrets.values = settings::agentSecretValues
         scope.launch { runCatching { com.past9.phoneaos.triggers.Overnight.ensureRoutine(this@Graph) } }
         // Anything scheduled that was missed while the app was dead runs once now.
         scope.launch { runCatching { Routines.catchUp(app) } }

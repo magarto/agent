@@ -398,7 +398,7 @@ class AgentRuntime(
             MemorySearchTool(db.memory()), MemoryGetTool(db.memory()),
             TaskListTool(db.tasks()), TaskUpdateTool(db.tasks()),
             NotificationsTool(db.notifications()) { settings.state.value.notifApps }, com.past9.phoneaos.tools.NotificationActTool { settings.state.value.notifApps },
-            RunCodeTool(context),
+            RunCodeTool(context), com.past9.phoneaos.tools.SecretsListTool { settings.agentSecrets() },
             LocationTool(context), NotificationsAllowTool(context, settings), NotificationsStopTool(settings), FilesPickTool(context), PhotosTool(context),
             WaitForCodeTool(db, settings, NotificationsAllowTool(context, settings)),
             com.past9.phoneaos.machines.SendFileTool(listOf(context.filesDir, context.cacheDir, android.os.Environment.getExternalStorageDirectory())),
