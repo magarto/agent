@@ -149,6 +149,7 @@ private fun RoutineRow(r: TriggerRow, actions: RoutineActions, now: java.time.Zo
                 Column(Modifier.weight(1f)) {
                     Text(r.name, style = MaterialTheme.typography.titleMedium, color = if (r.enabled) cs.onSurface else cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(whenLabel(r), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    windowLabel(r)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
                 Spacer(Modifier.width(8.dp))
                 Switch(r.enabled, { actions.onToggle(r) })
@@ -166,6 +167,20 @@ private fun RoutineRow(r: TriggerRow, actions: RoutineActions, now: java.time.Zo
     }
 }
 
+/** The days, hours and days off a routine keeps to (set by the agent), or null when it has none. */
+@Composable
+private fun windowLabel(r: TriggerRow): String? {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val o = remember(r) { com.past9.phoneaos.triggers.RoutineOptions.get(com.past9.phoneaos.triggers.RoutineOptions.dir(ctx), r.id) }
+    val locale = ctx.resources.configuration.locales[0]
+    return listOfNotNull(
+        o.days.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(", ") { java.time.DayOfWeek.of(it).getDisplayName(java.time.format.TextStyle.SHORT, locale) },
+        o.from?.let { stringResource(R.string.routine_window_hours, it.toString(), o.to.toString()) },
+        o.holidays.takeIf { it.isNotBlank() }?.let { stringResource(R.string.routine_window_holidays, it) },
+        o.skipDates.size.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.routine_window_dates, it, it) },
+    ).joinToString(" · ").ifEmpty { null }
+}
+
 private data class Template(val name: String, val kind: String, val spec: String, val prompt: String, val icon: ImageVector)
 private val templates = listOf(
     Template("Morning brief", "daily", "07:00", "Brief me on today: my calendar, what's due, and news that matters to me. Keep it short.", Icons.Rounded.WbSunny),
@@ -180,13 +195,19 @@ internal fun RoutineEditor(r: TriggerRow, onDismiss: () -> Unit, onSave: (Trigge
     var prompt by remember { mutableStateOf(r.prompt) }
     var kind by remember { mutableStateOf(r.kind) }
     var spec by remember { mutableStateOf(r.spec) }
+    val optionsDir = com.past9.phoneaos.triggers.RoutineOptions.dir(androidx.compose.ui.platform.LocalContext.current)
+    val options = remember { com.past9.phoneaos.triggers.RoutineOptions.get(optionsDir, r.id) }
+    var silent by remember { mutableStateOf(options.silent) }
     val valid = name.isNotBlank() && prompt.isNotBlank() && when (kind) {
         "daily", "nightly" -> Regex("^\\d{1,2}:\\d{2}$").matches(spec.trim()); "weekly" -> Routines.parseWeekly(spec) != null; "interval", "watch" -> (spec.trim().toIntOrNull() ?: 0) >= 15
         "at" -> (parseWhen(spec) ?: 0) > System.currentTimeMillis(); else -> spec.isNotBlank()
     }
     com.past9.phoneaos.ui.AppSheet(kindIcon(kind), if (r.id == 0L) stringResource(R.string.routines_runs_own) else whenLabel(r.copy(kind = kind, spec = spec)), if (r.id == 0L) stringResource(R.string.routines_new) else stringResource(R.string.routines_edit), onDismiss,
         primary = if (r.id == 0L) stringResource(R.string.routines_start) else stringResource(R.string.routines_save), primaryEnabled = valid, shape = MaterialShapes.Sunny,
-        onPrimary = { onSave(r.copy(name = name.trim(), prompt = prompt.trim(), kind = kind, spec = spec.trim(), cursor = if (kind != r.kind || spec != r.spec) "" else r.cursor, enabled = true)) },
+        onPrimary = {
+            // Options live beside the row (see RoutineOptions); a new routine has no id yet, so it gets them from the agent.
+            if (r.id != 0L && silent != options.silent) com.past9.phoneaos.triggers.RoutineOptions.set(optionsDir, r.id, options.copy(silent = silent))
+            onSave(r.copy(name = name.trim(), prompt = prompt.trim(), kind = kind, spec = spec.trim(), cursor = if (kind != r.kind || spec != r.spec) "" else r.cursor, enabled = true)) },
         secondary = if (onRunNow == null && onDelete == null) null else ({
             Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                 if (onRunNow != null) TextButton(onClick = onRunNow, modifier = Modifier.weight(1f).height(52.dp)) { Icon(Icons.Rounded.PlayArrow, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.routines_run_now)) }
@@ -253,6 +274,17 @@ internal fun RoutineEditor(r: TriggerRow, onDismiss: () -> Unit, onSave: (Trigge
             else -> {
                 com.past9.phoneaos.ui.SheetField(spec, { spec = it }, stringResource(R.string.routines_gmail_search), "from:bank@mybank.co.za", singleLine = true)
                 Text(stringResource(R.string.routines_gmail_needed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, top = 6.dp))
+            }
+        }
+        if (r.id != 0L) {
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(start = 4.dp)) {
+                    Text(stringResource(R.string.routine_silent), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.routine_silent_line), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(Modifier.width(8.dp))
+                Switch(silent, { silent = it })
             }
         }
     }

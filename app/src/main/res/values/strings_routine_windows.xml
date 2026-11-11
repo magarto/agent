@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="routine_window_hours">%1$s–%2$s</string>
+    <string name="routine_window_holidays">not on holidays (%1$s)</string>
+    <plurals name="routine_window_dates">
+        <item quantity="one">%d day off</item>
+        <item quantity="other">%d days off</item>
+    </plurals>
+    <string name="routine_window_skip_date">Skipped: a day set to skip</string>
+    <string name="routine_window_skip_day">Skipped: not one of its days</string>
+    <string name="routine_window_skip_hours">Skipped: outside its hours</string>
+    <string name="routine_window_skip_holiday">Skipped: public holiday</string>
+    <string name="routine_window_holidays_unknown">Couldn\'t get the holidays for %1$s, so it ran anyway.</string>
+</resources>
