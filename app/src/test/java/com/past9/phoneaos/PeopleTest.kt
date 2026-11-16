@@ -229,4 +229,21 @@ class PeopleTest {
         assertNull(repo.person(id))
         assertEquals(0, repo.logs(id).size)
     }
+
+    @Test fun theAgentCanRewriteAPersonsNoteAndTheNameStays() = runBlocking {
+        val id = repo.add("Thandi", "Cousin")
+        val out = com.past9.phoneaos.tools.PersonUpdateTool(repo).run(JSONObject().put("person", "Thandi").put("note", "Cousin. Works as a nurse. Daughter: Lindi."), quiet)
+        assertTrue(out, out.contains("Updated Thandi"))
+        val p = repo.person(id)!!
+        assertEquals("Thandi", p.name)
+        assertEquals("Cousin. Works as a nurse. Daughter: Lindi.", p.note)
+    }
+
+    @Test fun anAddressBookRowBecomesOneReadableLine() {
+        val c = android.provider.ContactsContract.CommonDataKinds.Event.CONTENT_ITEM_TYPE
+        assertEquals("birthday: 1990-04-12", ContactsImport.detailLine(c, "1990-04-12", android.provider.ContactsContract.CommonDataKinds.Event.TYPE_BIRTHDAY.toString(), null, null))
+        assertEquals("address: 1 Main St Springfield", ContactsImport.detailLine(android.provider.ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE, "1 Main St\nSpringfield", null, null, null))
+        assertNull("an empty value is skipped", ContactsImport.detailLine(c, " ", null, null, null))
+        assertNull("other kinds are skipped", ContactsImport.detailLine("vnd.android.cursor.item/photo", "x", null, null, null))
+    }
 }

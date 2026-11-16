@@ -390,6 +390,7 @@ class AgentRuntime(
             com.past9.phoneaos.tools.PersonAddTool(people), com.past9.phoneaos.tools.PersonLogTool(people),
             com.past9.phoneaos.tools.PersonListTool(people), com.past9.phoneaos.tools.PersonGetTool(people),
             com.past9.phoneaos.tools.PersonDateAddTool(people) { peopleChanged() }, com.past9.phoneaos.tools.GiftAddTool(people),
+            com.past9.phoneaos.tools.PersonUpdateTool(people),
         )
         // Small jobs (a page, a quick lookup) it may do itself, within the step budget. Routines and watchers stay with helpers.
         val mine = own.map { it.spec.name }.toSet() + setOf("report", "routine_create", "routine_update", "routine_delete", "block_save", "block_list", "block_delete", "watcher_save", "place_save", "place_delete", "skill_save", "skill_find",
@@ -418,6 +419,7 @@ class AgentRuntime(
         Gated(com.past9.phoneaos.tools.PersonAddTool(people)) + Gated(com.past9.phoneaos.tools.PersonLogTool(people)) +
         Gated(com.past9.phoneaos.tools.PersonListTool(people)) + Gated(com.past9.phoneaos.tools.PersonGetTool(people)) +
         Gated(com.past9.phoneaos.tools.PersonDateAddTool(people) { peopleChanged() }) + Gated(com.past9.phoneaos.tools.GiftAddTool(people)) +
+        Gated(com.past9.phoneaos.tools.PersonUpdateTool(people)) +
         com.past9.phoneaos.tools.WakeScheduleTool(context) + com.past9.phoneaos.tools.WakeListTool(context) + com.past9.phoneaos.tools.WakeCancelTool(context)
 
     /** A date, a person or a gift changed: arm or drop the reminders at once (the phone's own alarms, no routine). */
@@ -430,7 +432,7 @@ class AgentRuntime(
             MemorySearchTool(db.memory()), MemoryGetTool(db.memory()),
             TaskListTool(db.tasks()), TaskUpdateTool(db.tasks()),
             NotificationsTool(db.notifications()) { settings.state.value.notifApps }, com.past9.phoneaos.tools.NotificationActTool { settings.state.value.notifApps },
-            RunCodeTool(context), com.past9.phoneaos.tools.SecretsListTool { settings.agentSecrets() },
+            RunCodeTool(context), com.past9.phoneaos.tools.SecretsListTool { settings.agentSecrets() }, com.past9.phoneaos.tools.ContactsSearchTool(context),
             LocationTool(context), NotificationsAllowTool(context, settings), NotificationsStopTool(settings), FilesPickTool(context), PhotosTool(context),
             WaitForCodeTool(db, settings, NotificationsAllowTool(context, settings)),
             com.past9.phoneaos.machines.SendFileTool(listOf(context.filesDir, context.cacheDir, android.os.Environment.getExternalStorageDirectory())),
