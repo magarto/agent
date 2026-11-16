@@ -73,16 +73,20 @@ class ScreenTapTool(private val session: () -> ScreenSession) : Tool {
 class ScreenTypeTool(private val session: () -> ScreenSession) : Tool {
     override val spec = ToolSpec("screen_type",
         "Type text into a field on the background screen: the field with the focus, or the one you name (element or field). It replaces what is there unless append is true. " +
-            "submit true presses the keyboard's own Send, Search or Go afterwards, which asks the user first. Returns what the field now reads and the screen afterwards.",
+            "submit true presses the keyboard's own Send, Search or Go afterwards, which asks the user first. Returns what the field now reads and the screen afterwards. " +
+            "For a password or other secret the user stored (secrets_list): ${AgentSecrets.HOW}",
         schema(listOf("text"),
-            "text" to str("What to type"),
+            "text" to str("What to type; may hold {{secret:name}}"),
             "element" to int("The field's number from the last list"),
             "field" to str("Or the field's words or hint, e.g. 'Search'"),
             "append" to bool("Add to what is there instead of replacing it (default false)"),
             "submit" to bool("Press the keyboard's Send / Search / Go after typing (default false)"),
             "secret" to bool("true for a password, a PIN or anything private: it is painted over in the recording and never stored (default false)")))
-    override suspend fun run(input: JSONObject, ctx: ToolContext): String =
-        session().type(ctx, input.optString("text"), input.intOrNull("element"), input.optString("field"), input.optBoolean("append"), input.optBoolean("submit"), input.optBoolean("secret"))
+    override suspend fun run(input: JSONObject, ctx: ToolContext): String {
+        val text = input.optString("text")
+        // A stored secret is always typed hidden: painted over in the recording and kept out of the approval.
+        return session().type(ctx, AgentSecrets.fill(text), input.intOrNull("element"), input.optString("field"), input.optBoolean("append"), input.optBoolean("submit"), input.optBoolean("secret") || AgentSecrets.hasRef(text))
+    }
 }
 
 class ScreenSwipeTool(private val session: () -> ScreenSession) : Tool {

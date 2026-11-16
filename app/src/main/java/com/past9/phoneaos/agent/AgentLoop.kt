@@ -97,7 +97,9 @@ class AgentLoop(
                     // An Error from inside a tool (out of memory, a missing class) fails that one call, not the helper or the app.
                     "Error: the tool crashed (${e::class.simpleName}: ${e.message})" to true
                 }
-                val clipped = if (out.length > 24_000) out.take(24_000) + "\n…(cut, ${out.length} chars total)" else out
+                // Before the cut, so a value split by it can't show half of itself.
+                val safe = com.past9.phoneaos.tools.AgentSecrets.redact(out)
+                val clipped = if (safe.length > 24_000) safe.take(24_000) + "\n…(cut, ${safe.length} chars total)" else safe
                 onEvent(AgentEvent.ToolFinished(call, clipped, err))
                 Block.ToolResult(call.id, clipped, err)
             }

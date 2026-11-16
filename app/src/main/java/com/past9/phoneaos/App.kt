@@ -38,6 +38,7 @@ class Graph(context: Context) {
         com.past9.phoneaos.triggers.Routines.appContext = app
         // A paired Wear OS watch (only once it has said hello): keep its picture current. docs/wear.md.
         runCatching { com.past9.phoneaos.wear.WatchRelay.attach(this) }
+        com.past9.phoneaos.tools.AgentSecrets.values = settings::agentSecretValues
         scope.launch { runCatching { com.past9.phoneaos.triggers.Overnight.ensureRoutine(this@Graph) } }
         // Important dates (People): one exact alarm per date, planned from the dates themselves on every start.
         scope.launch { runCatching { com.past9.phoneaos.people.PersonReminders.syncAll(app) } }

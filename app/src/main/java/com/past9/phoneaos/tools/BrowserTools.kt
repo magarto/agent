@@ -102,11 +102,11 @@ class BrowserClickTool(c: Context) : BrowserTool(c) {
 }
 
 class BrowserTypeTool(c: Context) : BrowserTool(c) {
-    override val spec = ToolSpec("browser_type", "Type text into a field (by [number], selector, or the focused field). Set submit to press Enter.",
-        schema(listOf("text"), "text" to str("What to type"), "ref" to str("Element number"), "selector" to str("CSS selector"), "submit" to bool("Press Enter after")))
+    override val spec = ToolSpec("browser_type", "Type text into a field (by [number], selector, or the focused field). Set submit to press Enter. For a password or other secret the user stored (secrets_list): ${AgentSecrets.HOW}",
+        schema(listOf("text"), "text" to str("What to type; may hold {{secret:name}}"), "ref" to str("Element number"), "selector" to str("CSS selector"), "submit" to bool("Press Enter after")))
     override suspend fun run(input: JSONObject, ctx: ToolContext): String {
         val e = engine(ctx)
-        val r = e.type(input.optString("ref").ifBlank { null }, input.optString("selector").ifBlank { null }, input.optString("text"), input.optBoolean("submit"))
+        val r = e.type(input.optString("ref").ifBlank { null }, input.optString("selector").ifBlank { null }, AgentSecrets.fill(input.optString("text")), input.optBoolean("submit"))
         ctx.activity("Typed into the page", JSONObject().put("tool", "browser"))
         return r + if (input.optBoolean("submit")) "\n\n" + e.snapshot(8_000) else ""
     }

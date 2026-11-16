@@ -6,6 +6,7 @@ import com.past9.phoneaos.agent.ToolContext
 import com.past9.phoneaos.agent.ToolSpec
 import com.past9.phoneaos.agent.schema
 import com.past9.phoneaos.agent.str
+import com.past9.phoneaos.agent.strList
 import com.past9.phoneaos.data.SubKind
 import com.past9.phoneaos.runtime.SubscriptionRuntime
 import kotlinx.coroutines.Dispatchers
@@ -23,10 +24,15 @@ class RunCodeTool(private val context: Context) : Tool {
     private val rt = SubscriptionRuntime(context, SubKind.CLAUDE)
     val workspace: File get() = File(context.filesDir, "workspace").apply { mkdirs() }
 
-    override val spec = ToolSpec("run_code", "Run JavaScript (Node 24, ES modules) in your private workspace on the phone. Use it to calculate, parse or transform data, call web APIs with fetch, and create files (CSV, JSON, HTML, SVG, Markdown). Files you write into the current folder are kept; images (.png/.jpg/.svg) are shown to the user and to you. console.log what you want back. No npm installs.",
-        schema(listOf("code", "purpose"), "code" to str("The JavaScript to run"), "purpose" to str("One line: what this does, shown to the user")))
+    override val spec = ToolSpec("run_code", "Run JavaScript (Node 24, ES modules) in your private workspace on the phone. Use it to calculate, parse or transform data, call web APIs with fetch, and create files (CSV, JSON, HTML, SVG, Markdown). Files you write into the current folder are kept; images (.png/.jpg/.svg) are shown to the user and to you. console.log what you want back. No npm installs. A secret the user stored (secrets_list) is never written in the code: name it in `secrets` and read process.env.SECRET_<NAME> (e.g. SECRET_API_KEY); you never see its value, output shows {{secret:name}} instead.",
+        schema(listOf("code", "purpose"), "code" to str("The JavaScript to run"), "purpose" to str("One line: what this does, shown to the user"),
+            "secrets" to strList("Names of stored secrets the code needs, as environment variables SECRET_<NAME>")))
 
     override suspend fun run(input: JSONObject, ctx: ToolContext): String = withContext(Dispatchers.IO) {
+        val stored = AgentSecrets.values()
+        val names = input.optJSONArray("secrets")?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()
+        names.firstOrNull { AgentSecrets.cleanName(it) !in stored }?.let { return@withContext "Error: " + AgentSecrets.unknown(it, stored.keys) }
+        val secretEnv = names.mapNotNull { AgentSecrets.cleanName(it) }.associate { AgentSecrets.envName(it) to stored.getValue(it) }
         if (!rt.nodeAvailable) {
             ctx.activity("Downloading the code runtime (one time)", JSONObject().put("tool", "code"))
             val err = runCatching { rt.ensureNode() }.exceptionOrNull()
@@ -37,7 +43,7 @@ class RunCodeTool(private val context: Context) : Tool {
         val script = File(workspace, ".run-${System.currentTimeMillis()}.mjs").apply { writeText(input.optString("code")) }
         rt.linkBins()
         val p = ProcessBuilder(File(rt.bin, "node").path, script.path).directory(workspace).redirectErrorStream(true)
-            .apply { environment().putAll(rt.env()); environment()["HOME"] = workspace.path }.start()
+            .apply { environment().putAll(rt.env()); environment()["HOME"] = workspace.path; environment().putAll(secretEnv) }.start()
         val out = StringBuilder()
         val reader = Thread { runCatching { p.inputStream.bufferedReader().forEachLine { if (out.length < 20_000) out.appendLine(it) } } }.apply { start() }
         val finished = p.waitFor(90, TimeUnit.SECONDS)
