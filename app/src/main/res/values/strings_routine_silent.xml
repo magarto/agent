@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="routine_silent">Only tell me when something needs me</string>
+    <string name="routine_silent_line">Runs that find nothing stay quiet: no message, no notification.</string>
+    <string name="routine_silent_nothing">Nothing to report</string>
+</resources>

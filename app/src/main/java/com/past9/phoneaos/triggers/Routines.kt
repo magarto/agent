@@ -199,6 +199,8 @@ object Routines {
     fun cancel(context: Context, id: Long) {
         WorkManager.getInstance(context).cancelUniqueWork(name(id))
         com.past9.phoneaos.system.ExactAlarms.cancel(context, com.past9.phoneaos.system.ExactAlarms.ACTION_ROUTINE, id)
+        // Only called when the routine is deleted: its options go with it, so a later routine reusing the id starts clean.
+        RoutineOptions.remove(RoutineOptions.dir(context), id)
     }
 
     suspend fun rescheduleAll(context: Context) = App.graph(context).db.triggers().list().forEach { schedule(context, it) }
@@ -284,11 +286,15 @@ class RoutineWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             prompt = "A new email matched \"${t.spec}\" (message id $newest). Read it with your Gmail tools, then: ${t.prompt}"
         }
 
-        val out = g.runtime.runBackground(t.name, prompt)
-        payload = out
+        val silent = RoutineOptions.get(RoutineOptions.dir(applicationContext), id).silent
+        if (silent) prompt += RoutineOptions.SILENT_NOTE
+        val out = g.runtime.runBackground(t.name, prompt, silentIf = if (silent) WakePlan::isQuiet else null)
+        val quiet = silent && WakePlan.isQuiet(out)
+        payload = out.takeUnless { quiet }
+        val result = if (quiet) applicationContext.getString(com.past9.phoneaos.R.string.routine_silent_nothing) else out
         // Re-read: the row may have been edited while this ran.
         val now = g.db.triggers().get(id) ?: return Result.success()
-        g.db.triggers().upsert(now.copy(lastRunAt = System.currentTimeMillis(), lastResult = out.take(500), cursor = cursor,
+        g.db.triggers().upsert(now.copy(lastRunAt = System.currentTimeMillis(), lastResult = result.take(500), cursor = cursor,
             enabled = if (t.kind == "at" && !manual) false else now.enabled))
         if (timedRun) RunLedger.done(store, id, slot)
         if ((t.kind == "daily" || t.kind == "weekly") && !manual) g.db.triggers().get(id)?.let { Routines.schedule(applicationContext, it) }

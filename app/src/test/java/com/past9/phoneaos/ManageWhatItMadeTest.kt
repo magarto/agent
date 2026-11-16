@@ -5,6 +5,7 @@ import com.past9.phoneaos.agent.AgentRuntime
 import com.past9.phoneaos.agent.SubscriptionEngine
 import com.past9.phoneaos.data.*
 import com.past9.phoneaos.tools.*
+import com.past9.phoneaos.triggers.RoutineOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -69,10 +70,10 @@ class ManageWhatItMadeTest {
         val dao = AppDb.inMemory(app).triggers()
         val long = "Every morning: check the weather, then the news, then my calendar. " + "Keep each part short. ".repeat(10) + "End with the calendar."
         val id = dao.upsert(TriggerRow(name = "Morning brief", kind = "daily", spec = "07:00", prompt = long))
-        assertTrue(ScheduleListTool(dao).run(j("{}"), quiet).contains("End with the calendar."))
+        assertTrue(ScheduleListTool(dao, RoutineOptions.dir(app)).run(j("{}"), quiet).contains("End with the calendar."))
 
         val changed = mutableListOf<TriggerRow>()
-        val update = ScheduleUpdateTool(dao) { changed += it }
+        val update = ScheduleUpdateTool(dao, RoutineOptions.dir(app)) { changed += it }
         assertTrue(update.run(j("""{"id":$id,"spec":"7am"}"""), quiet).startsWith("Not changed"))
         update.run(j("""{"id":$id,"kind":"weekly","spec":"MON,FRI 06:30"}"""), quiet)
         update.run(j("""{"id":$id,"enabled":false}"""), quiet)
@@ -83,7 +84,7 @@ class ManageWhatItMadeTest {
         assertEquals(id, changed.last().id)
 
         // Recreating it under the same name is refused and points to routine_update.
-        val again = ScheduleCreateTool(dao) { changed += it }.run(j("""{"name":"morning brief","kind":"daily","spec":"06:15","prompt":"x"}"""), quiet)
+        val again = ScheduleCreateTool(dao, RoutineOptions.dir(app)) { changed += it }.run(j("""{"name":"morning brief","kind":"daily","spec":"06:15","prompt":"x"}"""), quiet)
         assertTrue(again.contains("routine_update (id $id)"))
         assertEquals(1, dao.list().size)
     }
