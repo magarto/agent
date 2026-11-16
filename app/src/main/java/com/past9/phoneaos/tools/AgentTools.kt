@@ -132,18 +132,19 @@ class ApprovalTool : Tool {
 class ScheduleCreateTool(private val dao: TriggerDao, private val options: java.io.File, private val onChange: suspend (TriggerRow) -> Unit) : Tool {
     override val spec = ToolSpec("routine_create", "Create a NEW routine (to change one that exists, use routine_update: never create a copy and delete the old one): a prompt you will run later by yourself. kind 'at' = once at a time (spec ISO like 2026-10-06T07:30); 'daily' = every day (spec HH:mm); 'weekly' = on certain weekdays (spec 'SUN 18:00' or 'MON,WED,FRI 07:30'), use this for anything weekly, never daily-with-a-day-check; 'interval' = every N minutes (spec minutes, min 15); 'email' = when a new email matches a Gmail search (spec e.g. 'from:bank@x.com', needs Gmail connected); 'notification' = the moment a phone notification arrives (spec 'App name|keyword', keyword optional, app must be allowed in Connections).",
         schema(listOf("name", "kind", "spec", "prompt"), "name" to str("Short name"), "kind" to enumOf("When it runs", "at", "daily", "weekly", "interval", "email", "notification"),
-            "spec" to str("Time/interval/query per kind"), "prompt" to str("What you will do each time, written as an instruction to yourself"), "silent" to bool(SILENT_PARAM)))
+            "spec" to str("Time/interval/query per kind"), "prompt" to str("What you will do each time, written as an instruction to yourself"), "silent" to bool(SILENT_PARAM), *windowParams))
     override suspend fun run(input: JSONObject, ctx: ToolContext): String {
         val kind = input.optString("kind")
         val spec = input.optString("spec").trim()
         routineSpecError(kind, spec)?.let { return "Not created: $it" }
+        val opts = RoutineOptions(silent = input.optBoolean("silent")).withWindow(input).getOrElse { return "Not created: ${it.message}" }
         // Editing by recreating loses the id (and too often part of the prompt): send it to routine_update instead.
         dao.list().firstOrNull { it.name.trim().equals(input.optString("name").trim(), true) }?.let {
             return "Not created: routine #${it.id} is already called \"${it.name}\". Change it in place with routine_update (id ${it.id}); for a second routine, give it another name."
         }
         val row = TriggerRow(name = input.optString("name"), kind = kind, spec = spec, prompt = input.optString("prompt"))
         val id = dao.upsert(row)
-        if (input.optBoolean("silent")) RoutineOptions.set(options, id, RoutineOptions(silent = true))
+        if (opts != RoutineOptions()) RoutineOptions.set(options, id, opts)
         onChange(row.copy(id = id))
         ctx.activity("New routine: ${row.name}", JSONObject().put("tool", "routines"))
         return "Routine #$id created."
@@ -165,27 +166,38 @@ fun routineSpecError(kind: String, spec: String): String? = when (kind) {
 private const val SILENT_PARAM = "Only tell the user when something needs them: each run may reply exactly QUIET when it finds nothing, and nothing is posted then. " +
     "Use it for checks that usually find nothing (watching for something). Default false."
 
+/** When a routine may run, on top of its schedule: a run outside it is skipped before any model call. */
+private val windowParams = arrayOf(
+    "days" to str("Only run on these weekdays, e.g. 'MON,TUE,WED,THU,FRI'. Empty string: every day."),
+    "from" to str("With 'to': only run between these local times (HH:mm, both included; from after to crosses midnight, e.g. 22:00 to 06:00). Empty strings for both: any time."),
+    "to" to str("End of the 'from' window (HH:mm)."),
+    "skip_holidays" to str("Skip public holidays of this region: an ISO country code like 'US', or country-subdivision like 'US-CA' for regional ones too. Empty string: don't skip them."),
+    "skip_dates" to strList("Dates it must not run on (yyyy-MM-dd). An empty list clears them."),
+)
+
 class ScheduleListTool(private val dao: TriggerDao, private val options: java.io.File) : Tool {
     override val spec = ToolSpec("routine_list", "List the routines (scheduled and triggered runs), each with its whole prompt.", schema())
     // The whole prompt: a routine is changed with routine_update from what this shows, and a cut one would lose the rest.
     override suspend fun run(input: JSONObject, ctx: ToolContext): String =
-        dao.list().filter { it.kind != "wake" }.joinToString("\n\n") { "#${it.id} ${it.name} [${it.kind} ${it.spec}]${if (!it.enabled) " (paused)" else ""}${if (RoutineOptions.get(options, it.id).silent) " (silent)" else ""}:\n${it.prompt}" }.ifBlank { "No routines." }
+        dao.list().filter { it.kind != "wake" }.joinToString("\n\n") { "#${it.id} ${it.name} [${it.kind} ${it.spec}]${if (!it.enabled) " (paused)" else ""}${RoutineOptions.get(options, it.id).let { o -> (if (o.silent) " (silent)" else "") + o.describe() }}:\n${it.prompt}" }.ifBlank { "No routines." }
 }
 
 class ScheduleUpdateTool(private val dao: TriggerDao, private val options: java.io.File, private val onChange: suspend (TriggerRow) -> Unit) : Tool {
     override val spec = ToolSpec("routine_update", "Change a routine in place: its name, schedule (kind and spec as in routine_create), prompt, or pause/resume it. Only what you pass changes. " +
         "To change part of the prompt, start from the whole prompt routine_list shows and keep everything the user didn't ask to change. Never recreate a routine to edit it.",
         schema(listOf("id"), "id" to int("Routine id"), "name" to str("New name"), "kind" to enumOf("When it runs", "at", "daily", "weekly", "interval", "email", "notification"),
-            "spec" to str("New time/interval/query per kind"), "prompt" to str("The new whole prompt"), "enabled" to bool("false pauses it, true resumes it"), "silent" to bool(SILENT_PARAM)))
+            "spec" to str("New time/interval/query per kind"), "prompt" to str("The new whole prompt"), "enabled" to bool("false pauses it, true resumes it"), "silent" to bool(SILENT_PARAM), *windowParams))
     override suspend fun run(input: JSONObject, ctx: ToolContext): String {
         val t = dao.get(input.getLong("id")) ?: return "No such routine"
         val kind = input.optString("kind").ifBlank { t.kind }
         val spec = input.optString("spec").trim().ifBlank { t.spec }
         if (kind != t.kind || spec != t.spec) routineSpecError(kind, spec)?.let { return "Not changed: $it" }
+        val old = RoutineOptions.get(options, t.id)
+        val opts = (if (input.has("silent")) old.copy(silent = input.optBoolean("silent")) else old).withWindow(input).getOrElse { return "Not changed: ${it.message}" }
         val updated = t.copy(name = input.optString("name").ifBlank { t.name }, kind = kind, spec = spec, prompt = input.optString("prompt").ifBlank { t.prompt },
             enabled = if (input.has("enabled")) input.optBoolean("enabled") else t.enabled)
         dao.upsert(updated)
-        if (input.has("silent")) RoutineOptions.set(options, t.id, RoutineOptions.get(options, t.id).copy(silent = input.optBoolean("silent")))
+        if (opts != old) RoutineOptions.set(options, t.id, opts)
         onChange(updated)
         ctx.activity("Changed routine: ${updated.name}", JSONObject().put("tool", "routines"))
         return "Routine #${t.id} updated${if (!updated.enabled) " (paused)" else ""}."

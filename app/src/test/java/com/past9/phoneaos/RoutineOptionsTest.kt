@@ -46,6 +46,23 @@ class RoutineOptionsTest {
         assertFalse(ScheduleListTool(dao, dir).run(j("{}"), quiet).contains("(silent)"))
     }
 
+    @Test fun theAgentSetsARunWindow() = runBlocking {
+        val dao = AppDb.inMemory(app).triggers()
+        val dir = RoutineOptions.dir(app)
+        val create = ScheduleCreateTool(dao, dir) {}
+        assertTrue(create.run(j("""{"name":"Desk check","kind":"interval","spec":"60","prompt":"x","from":"09:00"}"""), quiet).startsWith("Not created: give both"))
+        assertTrue(dao.list().isEmpty())
+        val made = create.run(j("""{"name":"Desk check","kind":"interval","spec":"60","prompt":"x","days":"MON,TUE","from":"09:00","to":"17:00"}"""), quiet)
+        val id = Regex("#(\\d+)").find(made)!!.groupValues[1].toLong()
+        assertTrue(ScheduleListTool(dao, dir).run(j("{}"), quiet).contains("[days MON,TUE; 09:00-17:00]"))
+
+        val update = ScheduleUpdateTool(dao, dir) {}
+        assertTrue(update.run(j("""{"id":$id,"skip_holidays":"somewhere"}"""), quiet).startsWith("Not changed"))
+        update.run(j("""{"id":$id,"skip_holidays":"XX-AA","silent":true}"""), quiet)
+        val o = RoutineOptions.get(dir, id)
+        assertEquals(listOf(setOf(1, 2), "XX-AA", true), listOf(o.days, o.holidays, o.silent))
+    }
+
     @Test fun theSilentNoteAsksForTheWordTheRunChecks() {
         assertTrue(RoutineOptions.SILENT_NOTE.contains(WakePlan.QUIET))
         assertTrue(WakePlan.isQuiet("QUIET."))
