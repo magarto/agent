@@ -392,7 +392,7 @@ class AgentRuntime(
             com.past9.phoneaos.tools.PersonDateAddTool(people) { peopleChanged() }, com.past9.phoneaos.tools.GiftAddTool(people),
         )
         // Small jobs (a page, a quick lookup) it may do itself, within the step budget. Routines and watchers stay with helpers.
-        val mine = own.map { it.spec.name }.toSet() + setOf("report", "routine_create", "routine_update", "routine_delete", "watcher_save", "skill_save", "skill_find",
+        val mine = own.map { it.spec.name }.toSet() + setOf("report", "routine_create", "routine_update", "routine_delete", "block_save", "block_list", "block_delete", "watcher_save", "skill_save", "skill_find",
             "card_guide", "card_save", "card_update", "card_delete")
         return (own + workerTools().filter { it.spec.name !in mine }.map { Budgeted(it, turn.line.budget) })
             .map { Capped(it, turn.line.calls) }
@@ -465,6 +465,9 @@ class AgentRuntime(
         list += ScheduleCreateTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context)) { onRoutineChanged(it) }
         list += ScheduleUpdateTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context)) { onRoutineChanged(it) }
         list += ScheduleListTool(db.triggers(), com.past9.phoneaos.triggers.RoutineOptions.dir(context))
+        val blocks = com.past9.phoneaos.triggers.RoutineBlocks.of(context)
+        list += com.past9.phoneaos.triggers.BlockSaveTool(blocks); list += com.past9.phoneaos.triggers.BlockListTool(blocks, db.triggers())
+        list += com.past9.phoneaos.triggers.BlockDeleteTool(blocks, db.triggers())
         list += com.past9.phoneaos.triggers.WatcherSaveTool(context) { onRoutineChanged(it) }
         list += ScheduleDeleteTool(db.triggers()) { onRoutineDeleted(it) }
         return list
