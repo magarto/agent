@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="routines_when_place_arrive">Al llegar a %1$s</string>
+    <string name="routines_when_place_leave">Al salir de %1$s</string>
+    <string name="routines_when_bt_connect">Cuando se conecte %1$s</string>
+    <string name="routines_when_bt_disconnect">Cuando se desconecte %1$s</string>
+    <string name="routines_kind_place">Lugar</string>
+    <string name="routines_kind_place_sub">Al llegar o salir</string>
+    <string name="routines_kind_bluetooth">Bluetooth</string>
+    <string name="routines_kind_bluetooth_sub">Al conectar un dispositivo</string>
+    <string name="routines_place_spec">Lugar, y luego arrive o leave</string>
+    <string name="routines_place_spec_hint">Casa|arrive</string>
+    <string name="routines_bt_spec">Dispositivo, y luego connect o disconnect</string>
+    <string name="routines_bt_spec_hint">Coche|connect</string>
+    <string name="place_needs_location">Aún no puede ejecutarse: pon la ubicación en Permitir siempre</string>
+    <string name="bluetooth_needs_permission">Aún no puede ejecutarse: permite Dispositivos cercanos</string>
+    <string name="bluetooth_allow_title">¿Permitir dispositivos cercanos?</string>
+    <string name="bluetooth_allow_body">Abre la app para que tu agente vea tus dispositivos Bluetooth vinculados</string>
+</resources>

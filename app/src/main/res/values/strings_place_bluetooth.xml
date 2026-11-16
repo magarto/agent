@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="routines_when_place_arrive">When you arrive at %1$s</string>
+    <string name="routines_when_place_leave">When you leave %1$s</string>
+    <string name="routines_when_bt_connect">When %1$s connects</string>
+    <string name="routines_when_bt_disconnect">When %1$s disconnects</string>
+    <string name="routines_kind_place">Place</string>
+    <string name="routines_kind_place_sub">Arriving or leaving</string>
+    <string name="routines_kind_bluetooth">Bluetooth</string>
+    <string name="routines_kind_bluetooth_sub">A device connects</string>
+    <string name="routines_place_spec">Place, then arrive or leave</string>
+    <string name="routines_place_spec_hint">Home|arrive</string>
+    <string name="routines_bt_spec">Device, then connect or disconnect</string>
+    <string name="routines_bt_spec_hint">Car|connect</string>
+    <string name="place_needs_location">Can\'t run yet: set Location to Allow all the time</string>
+    <string name="bluetooth_needs_permission">Can\'t run yet: allow Nearby devices</string>
+    <string name="bluetooth_allow_title">Allow nearby devices?</string>
+    <string name="bluetooth_allow_body">Open the app so your agent can see your paired Bluetooth devices</string>
+</resources>
