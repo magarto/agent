@@ -134,3 +134,26 @@ class GiftAddTool(private val repo: PeopleRepository) : Tool {
         return "Added to ${p.name}'s gift ideas."
     }
 }
+
+class PersonUpdateTool(private val repo: PeopleRepository) : Tool {
+    override val spec = ToolSpec("person_update", "Change a person's page: rename them, or replace their note (who they are, family, work, address, health, anything worth remembering). The note is replaced whole, so start from what person_get shows and keep what is still true.",
+        schema(listOf("person"), "person" to str("Their name or the person id"), "name" to str("New name"), "note" to str("The whole new note")))
+    override suspend fun run(input: JSONObject, ctx: ToolContext): String {
+        val p = repo.find(input.optString("person")) ?: return "No person called \"${input.optString("person")}\"."
+        if (!input.has("note") && input.optString("name").isBlank()) return "Nothing to change: pass a name or a note."
+        if (input.has("note")) repo.setNote(p.id, input.optString("note"))
+        input.optString("name").trim().takeIf { it.isNotEmpty() }?.let { repo.rename(p.id, it) }
+        ctx.activity("Updated ${p.name} in People", JSONObject().put("tool", "people"))
+        return "Updated ${p.name} (#${p.id})."
+    }
+}
+
+class ContactsSearchTool(private val context: android.content.Context) : Tool {
+    override val spec = ToolSpec("contacts_search", "Read the phone's address book: every contact whose name contains the text (accents and case ignored), with their phones, emails, birthday and other dates, address, work, relations, nickname and note. Read only.",
+        schema(listOf("query"), "query" to str("Part of the name, e.g. 'tia', 'primo', 'Garcia'. An empty string lists everyone (first 40)")))
+    override suspend fun run(input: JSONObject, ctx: ToolContext): String {
+        if (!com.past9.phoneaos.people.ContactsImport.allowed(context)) return "No access to contacts: the user has to allow it (People screen, Import)."
+        val found = com.past9.phoneaos.people.ContactsImport.details(context, input.optString("query").trim())
+        return if (found.isEmpty()) "No contact matches \"${input.optString("query")}\"." else found.joinToString("\n")
+    }
+}

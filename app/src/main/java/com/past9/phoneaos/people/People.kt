@@ -136,6 +136,7 @@ class PeopleRepository(
     suspend fun removeDate(personId: Long, key: String) { edit(personId) { p -> p.copy(dates = p.dates.filterNot { it.key == key }) to null } }
     suspend fun removeGift(personId: Long, key: String) { edit(personId) { p -> p.copy(gifts = p.gifts.filterNot { it.key == key }) to null } }
 
+    suspend fun setNote(personId: Long, note: String) { edit(personId) { p -> p.copy(note = note.trim()) to null } }
     suspend fun rename(personId: Long, name: String) { edit(personId) { p -> p.copy(name = name.trim().ifBlank { p.name }) to null } }
 
     suspend fun delete(personId: Long) { dao.deleteLogs(personId); dao.deletePerson(personId) }
